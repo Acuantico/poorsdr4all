@@ -1,0 +1,50 @@
+diff --git a/owrx/controllers/assets.py b/owrx/controllers/assets.py
+index b9a5d0f..16d81f6 100644
+--- a/owrx/controllers/assets.py
++++ b/owrx/controllers/assets.py
+@@ -3,7 +3,7 @@ from owrx.config.core import CoreConfig
+ from datetime import datetime, timezone
+ import mimetypes
+ import os
+-import pkg_resources
++from importlib.resources import files as _ir_files
+ from abc import ABCMeta, abstractmethod
+ import gzip
+ 
+@@ -100,7 +100,7 @@ class OwrxAssetsController(AssetsController):
+                 user_file = "{}/{}.{}".format(config.get_data_directory(), mappedFiles[file], ext)
+                 if os.path.exists(user_file) and os.path.isfile(user_file):
+                     return user_file
+-        return pkg_resources.resource_filename("htdocs", file)
++        return str(_ir_files("htdocs") / file)
+ 
+ 
+ class AprsSymbolsController(AssetsController):
+@@ -203,7 +203,7 @@ class CompiledAssetsController(GzipMixin, ModificationAwareController):
+             return
+ 
+         files = CompiledAssetsController.profiles[profileName]
+-        files = [pkg_resources.resource_filename("htdocs", f) for f in files]
++        files = [str(_ir_files("htdocs") / f) for f in files]
+ 
+         modified = self.getModified(files)
+ 
+diff --git a/owrx/controllers/template.py b/owrx/controllers/template.py
+index cf54e22..a8fa8c1 100644
+--- a/owrx/controllers/template.py
++++ b/owrx/controllers/template.py
+@@ -2,12 +2,12 @@ from owrx.controllers import Controller
+ from owrx.details import ReceiverDetails
+ from owrx.config import Config
+ from string import Template
+-import pkg_resources
++from importlib.resources import files as _ir_files
+ 
+ 
+ class TemplateController(Controller):
+     def render_template(self, file, **vars):
+-        file_content = pkg_resources.resource_string("htdocs", file).decode("utf-8")
++        file_content = (_ir_files("htdocs") / file).read_bytes().decode("utf-8")
+         template = Template(file_content)
+ 
+         return template.safe_substitute(**vars)

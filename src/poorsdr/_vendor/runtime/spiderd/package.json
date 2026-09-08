@@ -1,0 +1,10 @@
+{
+  "name": "poorsdr4-spiderd-node",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mqtt": "^5.10.4",
+    "ws": "^8.18.0"
+  }
+}

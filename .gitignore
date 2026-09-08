@@ -1,0 +1,72 @@
+# Bytecode / build
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Entornos
+.venv/
+venv/
+env/
+
+# Logs y estado en runtime
+*.log
+*_state.json
+*_last_js.js
+pid.txt
+pid_*.txt
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.bak
+*.tmp
+
+# Datos OWRX / caché
+.owrx-data*/
+.cache/
+/src/poorsdr/_vendor/runtime/owrx-native-build/
+/src/poorsdr/_vendor/runtime/ssl/
+/src/poorsdr/_vendor/runtime/*.so
+/src/poorsdr/_vendor/runtime/*.dylib
+/src/poorsdr/_vendor/runtime/*.dll
+
+# Restos de herramientas
+.codex-work/
+.codex-restore-*/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# installer-build/build.sh regenera esto en cada ejecucion (copia integra del
+# arbol via "git ls-files"): nunca se versiona, solo el .run resultante en
+# dist/ (tambien ignorado, mas abajo por la regla generica) se adjunta a los
+# Releases de GitHub.
+/installer-build/archive/payload/
+
+# Config local del usuario (se genera en ~/.config/poorsdr)
+/config.json
+/plugins/*/src/config.json
+/plugins/*/src/*/config.json
+/plugins/*/src/*/*settings.json
+
+# Puente de config transitorio (lo escribe poorsdr.app en runtime)
+/src/poorsdr/_vendor/config.json
+/src/poorsdr/_vendor/config.json.tmp
+
+# Datos mutables de plugins: siempre fuera del paquete instalado
+/plugins/libro-guardia/src/poorsdr_libro_guardia/logs/
+/plugins/libro-guardia/src/poorsdr_libro_guardia/Copias-Log-Aut/
+/plugins/libro-guardia/src/poorsdr_libro_guardia/logs-Copia-Manual/
+/plugins/libro-guardia/src/poorsdr_libro_guardia/assets/flag-cache/
+
+# Binarios generados y metadatos de IDE/SO
+*.so
+*.dylib
+*.dll
+*.pyd
+*.pem
+.DS_Store
+Thumbs.db

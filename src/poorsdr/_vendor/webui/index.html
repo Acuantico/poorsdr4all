@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PoorSDR4All Remote</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260406j" />
+</head>
+<body>
+  <div id="app">
+    <section id="login" class="card">
+      <h2>Acceso</h2>
+      <p class="muted">Credenciales del panel remoto.</p>
+      <div class="row">
+        <label>Usuario</label>
+        <input id="user" type="text" value="admin" autocomplete="username" />
+      </div>
+      <div class="row">
+        <label>Contraseña</label>
+        <input id="pass" type="password" autocomplete="current-password" />
+      </div>
+      <div class="row">
+        <label>OTP</label>
+        <input id="otp" type="text" autocomplete="one-time-code" placeholder="000000" />
+      </div>
+      <button id="loginBtn" class="primary">Entrar</button>
+      <div id="loginError" class="error"></div>
+    </section>
+
+    <section id="controls" class="hidden remote-shell">
+      <div class="remote-stage">
+        <div class="frequency-panel">
+          <input id="freq" class="freq-meter" type="text" inputmode="numeric" />
+          <div id="freqLabel">0.000.000 Hz</div>
+        </div>
+
+        <div class="control-grid">
+          <div class="panel control-card">
+            <label for="stepSelect">Paso</label>
+            <select id="stepSelect"></select>
+          </div>
+          <div class="panel control-card">
+            <label for="mode">Modo</label>
+            <select id="mode">
+              <option>AM</option>
+              <option>FM</option>
+              <option>USB</option>
+              <option>LSB</option>
+            </select>
+          </div>
+          <div class="panel control-card">
+            <label for="bandSelect">Banda</label>
+            <select id="bandSelect"></select>
+          </div>
+        </div>
+
+        <div class="audio-row">
+          <button id="audioSessionBtn" class="ghost small">Audio</button>
+        </div>
+
+        <div class="anr-row">
+          <label for="anrToggle">ANR</label>
+          <input id="anrToggle" type="checkbox" />
+          <label for="anrIntensity">Intensidad</label>
+          <input id="anrIntensity" type="range" min="1" max="10" step="1" value="3" />
+        </div>
+
+        <div class="slider-row">
+          <div class="panel slider-card">
+            <label for="volRx">RX</label>
+            <input id="volRx" type="range" min="0" max="1" step="0.01" value="1.0" />
+          </div>
+          <div class="panel slider-card">
+            <label for="volTx">TX</label>
+            <input id="volTx" type="range" min="0" max="1" step="0.01" value="1.0" />
+          </div>
+        </div>
+
+        <div id="ghostStatus">
+          <span id="status"></span>
+          <span id="modeLabel"></span>
+          <span id="radioLabel"></span>
+          <span id="audioStatus"></span>
+        </div>
+
+        <div class="freq-step-row">
+          <button id="freqDownBtn" class="ghost">-</button>
+          <button id="freqUpBtn" class="ghost">+</button>
+        </div>
+        <div id="pttHelp" class="muted centered">Recepción</div>
+        <div class="ptt-row">
+          <button id="pttBtn" class="ptt-rx">PTT</button>
+        </div>
+
+        <audio id="audioOut" autoplay playsinline></audio>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js?v=20260407b"></script>
+</body>
+</html>

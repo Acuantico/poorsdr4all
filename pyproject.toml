@@ -1,0 +1,183 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "poorsdr4all"
+version = "1.0.0a1"
+description = "PoorSDR4All — control de radio, CAT/rigctld, OWRX+ y panel de operación"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE", "LICENSES/*"]
+authors = [{ name = "Acuantico Power" }]
+keywords = ["sdr", "ham-radio", "cat", "openwebrx", "rigctld"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pyaudio>=0.2.13; platform_system != 'Windows'",
+    "pyaudiowpatch>=0.2.12.7; platform_system == 'Windows'",
+    "pyserial>=3.5",
+    "pynput>=1.8",
+    "Pillow>=10.0",
+    "psutil>=5.9",
+    "matplotlib>=3.7",
+    "cryptography>=41.0",
+]
+
+[project.urls]
+Homepage = "https://acuanticopower.com/"
+Documentation = "https://github.com/Acuantico/poorsdr4all#readme"
+Issues = "https://github.com/Acuantico/poorsdr4all/issues"
+Source = "https://github.com/Acuantico/poorsdr4all"
+
+[project.optional-dependencies]
+web = [
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
+    "websockets>=12.0",
+    "wsproto>=1.2",
+    "pyotp>=2.9",
+    "aiortc>=1.6",
+    "av>=10.0",
+    # aiortc importa pyOpenSSL para DTLS; versiones de pyOpenSSL viejas frente
+    # a un `cryptography` reciente rompen en el import con
+    # "AttributeError: module 'lib' has no attribute 'GEN_EMAIL'" — se ve
+    # como un 500 en /api/webrtc/offer (PTT/audio del panel web sin arrancar)
+    # sin que nada en el código de PoorSDR4All esté mal. pyOpenSSL 26+ ya
+    # declara compatibilidad con `cryptography` 49-50.
+    "pyopenssl>=26.0",
+]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.0",
+]
+
+[project.scripts]
+poorsdr = "poorsdr.app:main"
+poorsdr-waterfall = "poorsdr.viewers.waterfall:main"
+poorsdr-digi = "poorsdr.viewers.digi:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/poorsdr"]
+exclude = ["src/poorsdr/_vendor/runtime/spiderd/**"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/.editorconfig",
+    "/.github",
+    "/.gitignore",
+    "/CHANGELOG.md",
+    "/CLA.md",
+    "/COMMERCIAL-LICENSE.md",
+    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/LICENSES",
+    "/README.md",
+    "/SECURITY.md",
+    "/THIRD_PARTY_NOTICES.md",
+    "/assets",
+    "/docs",
+    "/patches",
+    "/plugins",
+    "/pyproject.toml",
+    "/scripts",
+    "/src",
+    "/tests",
+]
+
+[tool.hatch.build]
+exclude = [
+    "**/__pycache__/**",
+    "**/*.py[co]",
+    "**/*.log",
+    "**/*_state.json",
+    "**/config.json",
+    "**/runtime/ssl/**",
+    "**/runtime/owrx-native-build/**",
+    "**/runtime/*.so",
+    "**/runtime/*.dylib",
+    "**/runtime/*.dll",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+# _vendor y tests/unit son código de bajo nivel vendorizado del proyecto original:
+# se conservan sin reformatear para que el diff con el legacy siga siendo legible.
+extend-exclude = ["src/poorsdr/_vendor", "tests/unit", "plugins"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+# Módulos portados verbatim del proyecto original (functional core heredado):
+# se pulen cuando se trabajen, no al moverlos.
+"src/poorsdr/core/owrx/process.py" = ["I001", "SIM105", "UP031", "UP035", "UP006", "UP007"]
+"src/poorsdr/core/owrx/state.py" = ["I001", "SIM105", "UP031", "UP035", "UP006", "UP007"]
+"src/poorsdr/core/owrx/launch.py" = ["I001", "SIM105", "UP031", "UP035", "UP006", "UP007"]
+# Visores GTK portados verbatim de owrx_native.py / owrx_digi.py.
+"src/poorsdr/viewers/waterfall.py" = ["ALL"]
+"src/poorsdr/viewers/digi.py" = ["ALL"]
+
+[tool.mypy]
+# No es el minimo real soportado en tiempo de ejecucion (ver requires-python
+# arriba, ">=3.11"): numpy ya publica sus stubs (.pyi) con sintaxis PEP 695
+# ("type X = ..."), valida solo desde 3.12 para el propio parser de mypy.
+# Con python_version = "3.11" mypy rechaza esos stubs de terceros con un
+# error de sintaxis antes de comprobar nada del codigo propio, aunque este
+# no use esa sintaxis en ningun sitio. _vendor/ ya esta excluido de mypy, asi
+# que subir esto a 3.12 no relaja ninguna comprobacion real del proyecto.
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
+exclude = ["src/poorsdr/_vendor/"]
+
+[[tool.mypy.overrides]]
+# Vistas Tk: los stubs de tkinter hacen impracticable el **kwargs de
+# configuración. La lógica pura (poorsdr.ui.state) sí se comprueba.
+module = [
+    "poorsdr.ui.app",
+    "poorsdr.ui.main_window",
+    "poorsdr.ui.fonts",
+    "poorsdr.ui.widgets",
+    "poorsdr.ui.panels.*",
+    "poorsdr.ui.settings.window",
+    "poorsdr.ui.settings.autocall_panel",
+    "poorsdr.ui.settings.hotkeys_panel",
+    "poorsdr.ui.settings.plugins_panel",
+    "poorsdr.viewers.waterfall",
+    "poorsdr.viewers.digi",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["poorsdr.core.*", "poorsdr.config.*"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+# Portados verbatim del proyecto original; tipado completo pendiente.
+module = ["poorsdr.core.owrx.process", "poorsdr.core.owrx.state", "poorsdr.core.owrx.launch"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,133 @@
+name: 🎛️ Compatibilidad de radio (uSDX, QMX, otras)
+description: >-
+  Reporta si PoorSDR4All funciona con tu transceptor — variante de uSDX,
+  QMX, u otro. No hace falta escribir código: con esta información ya se
+  puede añadir (o corregir) un perfil en poorsdr.core.cat.profiles.
+title: "Compatibilidad: <modelo/variante> — <funciona / no funciona>"
+labels:
+  - compatibilidad
+  - cat
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por probarlo. Cuanto más completes, más fácil será convertir
+        tu prueba en un perfil real (ver `docs/ARCHITECTURE.md` y
+        `src/poorsdr/core/cat/profiles.py`). Si algo no aplica o no lo
+        probaste, déjalo en blanco — no hace falta rellenarlo todo.
+
+  - type: input
+    id: modelo
+    attributes:
+      label: Modelo / variante exacta
+      description: >-
+        p. ej. "uSDX+ V3", "(tr)uSDX", "QMX", "uSDX White Buttons", "MQX",
+        "uSDR"... cuanto más específico, mejor.
+      placeholder: uSDX+ V3
+    validations:
+      required: true
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware (nombre y versión)
+      description: p. ej. "uSDXOpen 1.05", "(tr)uSDX 2.00t", "QMX firmware oficial 1.03"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: resultado
+    attributes:
+      label: Resultado general
+      options:
+        - Funciona todo (frecuencia, modo, PTT)
+        - Funciona parcialmente (detalla abajo qué sí y qué no)
+        - No funciona
+        - Solo lo probé con perfil personalizado (aún no confirmado)
+    validations:
+      required: true
+
+  - type: input
+    id: puerto_baud
+    attributes:
+      label: Puerto y baudios usados
+      placeholder: /dev/ttyUSB0 @ 38400
+    validations:
+      required: false
+
+  - type: dropdown
+    id: perfil
+    attributes:
+      label: Perfil de Ajustes → Radio/CAT que usaste
+      options:
+        - "custom (Baudios/PTT por CAT manuales)"
+        - "generic-ts480"
+        - "trusdx-115200"
+        - No lo cambié / no lo sé
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frecuencia_modo
+    attributes:
+      label: ¿Frecuencia (FA) y modo (MD) se leen/escriben bien desde la consola?
+      options:
+        - Sí, ambos
+        - Solo frecuencia
+        - Solo modo
+        - Ninguno
+        - No lo probé
+    validations:
+      required: false
+
+  - type: dropdown
+    id: ptt
+    attributes:
+      label: ¿Cómo arma el PTT tu radio?
+      options:
+        - Por CAT (TX;/RX;) — funciona con "PTT por CAT" activado
+        - Por RTS de línea serie — funciona con "PTT por CAT" desactivado
+        - Ninguno de los dos funcionó
+        - No lo probé
+    validations:
+      required: false
+
+  - type: input
+    id: id_response
+    attributes:
+      label: Respuesta a "ID;" (si la probaste con un terminal serie)
+      description: >-
+        p. ej. con `screen`/`minicom`/`putty` a los baudios de tu radio,
+        manda "ID;" y pega la respuesta tal cual.
+      placeholder: "ID020;"
+    validations:
+      required: false
+
+  - type: textarea
+    id: if_response
+    attributes:
+      label: Ejemplo de respuesta a "IF;" (si la probaste)
+      description: Ayuda a confirmar si el formato coincide con el de TS-480.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas, diferencias observadas, enlaces a firmware/documentación
+      description: >-
+        Cualquier cosa que no encajara arriba: pines, menús, comportamiento
+        raro, un enlace al repositorio del firmware que usas, etc.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmaciones
+    attributes:
+      label: Confirmaciones
+      options:
+        - label: >-
+            No he incluido claves, contraseñas ni datos personales en este
+            reporte (capturas, logs, etc.)
+          required: true
