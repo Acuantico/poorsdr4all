@@ -17,6 +17,7 @@ Sustituye el núcleo de ``RadioCBApp._start_owrx_control_server`` /
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import socket
 import socketserver
@@ -56,10 +57,18 @@ class OwrxControlService(BaseService):
         cfg: AppConfig,
         *,
         audio_push: Callable[[bytes, int, int], None] | None = None,
+        radio: Any = None,
     ) -> None:
         super().__init__(bus)
         self._cfg = cfg
         self._audio_push = audio_push or (lambda _d, _r, _c: None)
+        # Para forzar una lectura CAT fresca justo antes de empujar el
+        # estado inicial a un visor recién conectado -- ver
+        # _on_client_connected(). Sin esto, un visor abierto justo al
+        # arrancar (antes de que hubiera pasado ni un ciclo de sondeo CAT)
+        # recibía el valor sembrado de la config guardada (la frecuencia de
+        # la sesión anterior), no la real del equipo en ese instante.
+        self._radio = radio
         self._server: socketserver.ThreadingTCPServer | None = None
         self._thread: threading.Thread | None = None
         self._clients: set[Any] = set()
@@ -68,6 +77,10 @@ class OwrxControlService(BaseService):
         self._viewer_ports: dict[str, int] = {}  # "waterfall" / "digi" → puerto
         self._last_band = infer_band(int(cfg.cat.start_freq_hz))
         self._step_hz = max(1, int(cfg.cat.step_hz))
+        #: Ancho de audio impuesto por un plugin (p. ej. el filtro del uSDX
+        #: elegido en el panel RTTY), o None = el normal del modo: ajusta el
+        #: selector de la cascada.
+        self._audio_passband: tuple[float, float] | None = None
         # Frecuencia/modo actuales del equipo: se siembran de la config al
         # arrancar (igual que RadioService) y se mantienen al día por el bus.
         # Sin esto, un visor que se abre a media sesión solo recibe el
@@ -154,6 +167,7 @@ class OwrxControlService(BaseService):
         self._send_step()
         self._send_spots()
         self._send_audio_capture()
+        self._send_passband()
 
     def _send_audio_capture(self) -> None:
         """Le dice al visor si debe decodificar y reenviar el audio (modo SDR).
@@ -164,6 +178,16 @@ class OwrxControlService(BaseService):
         self._send_to_viewers(
             {"type": "audio_capture", "enabled": self._cfg.audio.rx_source == "sdr"}
         )
+
+    def set_audio_passband(self, passband: tuple[float, float] | None) -> None:
+        """Ancho del selector de la cascada, en Hz de audio (p. ej. el filtro
+        del uSDX elegido en el plugin RTTY); ``None`` vuelve al normal del modo."""
+        self._audio_passband = (float(passband[0]), float(passband[1])) if passband else None
+        self._send_passband()
+
+    def _send_passband(self) -> None:
+        lo, hi = self._audio_passband if self._audio_passband else (None, None)
+        self._send_to_viewers({"type": "passband", "audio_low": lo, "audio_high": hi})
 
     def set_step(self, step_hz: int) -> None:
         """Fija el paso de sintonía (Hz) que usará la rueda del ratón en los visores."""
@@ -240,6 +264,24 @@ class OwrxControlService(BaseService):
 
     def _on_client_connected(self) -> None:
         self.bus.publish("owrx.status", component="viewer", ready=True)
+        # Fuerza una lectura CAT síncrona antes de empujar nada: read_state()
+        # publica "radio.frequency"/"radio.mode" si detecta un cambio real,
+        # y como ya estamos suscritos a ese bus, _last_freq_hz/_last_mode
+        # quedan al día ANTES de leerlos dos líneas más abajo -- si no, un
+        # visor abierto justo al arrancar (sin que aún hubiera corrido
+        # ningún sondeo periódico) recibía la frecuencia de la sesión
+        # anterior guardada en la config, no la real del equipo ahora mismo.
+        if self._radio is not None:
+            connected_before = getattr(self._radio, "connected", None)
+            freq_before = getattr(self._radio, "frequency_hz", None)
+            with contextlib.suppress(Exception):
+                self._radio.read_state()
+            self.log.info(
+                "viewer conectado: radio.connected=%s freq_before=%s freq_after=%s "
+                "_last_freq_hz(a usar)=%s",
+                connected_before, freq_before,
+                getattr(self._radio, "frequency_hz", None), self._last_freq_hz,
+            )
         # El visor ya tiene su servidor de comandos a la escucha (acaba de
         # conectarse de vuelta): reenvía todo por ahí, porque el envío de
         # ``set_viewer_port`` ocurre antes de que el visor arranque.
@@ -247,6 +289,7 @@ class OwrxControlService(BaseService):
         self._send_step()
         self._send_spots()
         self._send_audio_capture()
+        self._send_passband()
 
     # ---- mensajes entrantes -------------------------------------- #
     def _handle_line(self, line: bytes) -> None:
@@ -284,6 +327,18 @@ class OwrxControlService(BaseService):
             self.log.debug("push de audio OWRX falló", exc_info=True)
 
     def _handle_tune(self, payload: dict[str, Any]) -> None:
+        # El visor manda "tune" en dos casos bien distintos: (a) el operador
+        # hace clic/rueda de verdad sobre la cascada -- eso sí debe sintonizar
+        # la radio -- y (b) confirma que aplicó un "tune" que le mandamos
+        # NOSOTROS (p. ej. al conectar, _push_profile_and_tune le empuja la
+        # frecuencia real del uSDX) o reporta el centro por defecto de un
+        # perfil recién seleccionado. Solo el caso (a) lleva "user": True
+        # (ver viewers/waterfall.py: _on_click/_tune_step vs _process_commands).
+        # Sin este filtro, abrir OWRX podía arrastrar la frecuencia del uSDX
+        # hacia lo que fuera que reportara el visor al arrancar, en vez de
+        # al revés.
+        if not payload.get("user"):
+            return
         freq = parse_incoming_tune_frequency(payload.get("frequency") or payload.get("freq"))
         if freq is None:
             return

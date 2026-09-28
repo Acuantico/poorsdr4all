@@ -122,9 +122,6 @@ TABS: dict[str, tuple[Field, ...]] = {
         Field("spider", "telnet_pass", "label_spider_telnet_pass", "password",
               help_key="help_spider_telnet_pass"),
     ),
-    # La pestaña "Relés" ya no es fija: la aporta el plugin ``filter_relays``
-    # (ver plugins/filter-relays) vía ``PluginContext.add_settings_tab``, y
-    # solo aparece si ese plugin está instalado y activo.
     "Web": (
         Field("web", "enabled", "label_web_enabled", "bool", help_key="help_web_enabled"),
         Field("web", "host", "label_host", help_key="help_web_host"),
@@ -138,6 +135,8 @@ TABS: dict[str, tuple[Field, ...]] = {
               help_key="help_web_password"),
     ),
     "Interfaz": (
+        Field("ui", "operator_callsign", "label_ui_operator_callsign",
+              help_key="help_ui_operator_callsign"),
         Field("ui", "language", "label_ui_language", "choice",
               ("es", "en", "fr", "de", "it", "pt", "tr", "pl", "ru", "gl", "ca", "eu"),
               help_key="help_ui_language"),
@@ -174,7 +173,6 @@ TAB_LABEL_KEY: dict[str, str] = {
     "Autollamada": "label_tab_autocall",
     "Atajos": "label_tab_hotkeys",
     "Acerca de": "label_tab_about",
-    "Relés": "label_tab_relays",
 }
 
 ALL_FIELDS: tuple[Field, ...] = tuple(f for tab in TABS.values() for f in tab)

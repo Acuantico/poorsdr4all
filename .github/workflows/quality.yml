@@ -60,7 +60,7 @@ jobs:
           python-version: "3.13"
       - run: python -m pip install --upgrade build
       - run: python -m build
-      - run: python -m build plugins/filter-relays
+      - run: python -m build plugins/rtty-power
       - run: python scripts/check_release.py
       - run: python scripts/check_owrx_config.py
       - run: python scripts/write_checksums.py

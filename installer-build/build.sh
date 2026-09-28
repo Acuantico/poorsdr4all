@@ -31,11 +31,8 @@ rm -rf "${PAYLOAD_DIR}"
 mkdir -p "${PAYLOAD_DIR}"
 ( cd "${REPO_DIR}" && git ls-files -z | tar --null -T - -cf - ) | tar -x -C "${PAYLOAD_DIR}"
 
-# Los plugins van totalmente aparte: este instalador no incluye ninguno, ni
-# los instala, ni hace referencia a ellos. Cada plugin se distribuye e
-# instala por su cuenta, como ya documenta plugins/README.md.
-echo "==> Retirando plugins/ del paquete (van aparte, no se distribuyen aquí)..."
-rm -rf "${PAYLOAD_DIR}/plugins"
+# plugins/ se queda en el paquete: el asistente ofrece instalar los plugins
+# opcionales (desmarcados por defecto) vía INSTALL_PLUGIN_* de install.sh.
 
 echo "==> Fijando permisos ejecutables..."
 chmod +x \

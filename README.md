@@ -91,11 +91,19 @@ repositorio: cada equipo los compila para su sistema.
 
 ## Plugins incluidos
 
-Los plugins son distribuciones separadas y opcionales:
+Los plugins son distribuciones separadas y opcionales: PoorSDR4All funciona
+sin ninguno. Instala solo los que quieras, en el mismo entorno:
 
 ```sh
-python -m pip install ./plugins/filter-relays
+python -m pip install ./plugins/rtty-power
 ```
+
+El instalador gráfico y `scripts/install.sh` también pueden instalarlos
+(`INSTALL_PLUGIN_RTTY=1`, `INSTALL_PLUGIN_NMN1M=1`); por defecto no instalan
+ninguno.
+
+- **[RTTY Power](plugins/rtty-power/README.md)** — botón «RTTY»: decodificador
+  y TX RTTY con el audio del uSDX, con ayudas para concursos (CQ WW RTTY).
 
 El botón «Log» lo aporta **[Nunca Más, Ni Una Más (NMN1M)](https://github.com/Acuantico/nmn1m)**,
 un cuaderno de estación / contest logger que es su propio proyecto

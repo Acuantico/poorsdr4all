@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "poorsdr4all"
-version = "1.0.0a1"
+version = "1.0.0a2"
 description = "PoorSDR4All — control de radio, CAT/rigctld, OWRX+ y panel de operación"
 readme = "README.md"
 requires-python = ">=3.11"

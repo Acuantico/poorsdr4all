@@ -2,15 +2,15 @@
 
 Cada carpeta es un **proyecto Python independiente** (su propio `pyproject.toml`)
 que declara un *entry point* del grupo `poorsdr.plugins`. PoorSDR los detecta al
-arrancar; sin ninguno instalado la consola funciona igual (sin botón «Log», sin
-relés y sin la pestaña «Relés» en Ajustes).
+arrancar; sin ninguno instalado la consola funciona igual (sin botón «Log» ni
+«RTTY»).
 
 ## Instalar
 
 Desde el árbol fuente se instalan después del paquete principal:
 
 ```sh
-python -m pip install ./plugins/filter-relays
+python -m pip install ./plugins/rtty-power
 ```
 
 Para desarrollar un plugin se puede añadir `-e`. Los datos mutables no se

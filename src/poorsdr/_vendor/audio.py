@@ -292,6 +292,12 @@ _TX_APP_HINTS = ("wsjtx", "jtdx", "freedv", "js8call")
 _tx_tone_active = False
 _tx_tone_thread: Optional[threading.Thread] = None
 _tx_tone_stop_event = threading.Event()
+#: Igual que ``_tx_tone_active`` pero para inyección genérica desde dentro del
+#: propio proceso (p. ej. un plugin de modo digital como RTTY): sin esto,
+#: ``inject_tx_audio()`` no tiene efecto en modo local/nativo (solo se
+#: consumía en remoto/WebRTC o con capture_mode "app"), así que la radio
+#: arma el PTT pero no sale nada de audio.
+_tx_digi_inject_active = False
 _rx_sample_rate = 48000
 _rx_channels = 1
 _rx_meter_dbfs = -120.0
@@ -826,13 +832,22 @@ def pop_rx_raw_chunk() -> Optional[np.ndarray]:
 
 
 def pop_rx_raw_chunk_digi() -> Optional[np.ndarray]:
-    """Independent RX chunk consumer for Digi to avoid contention with webserver."""
+    """Independent RX consumer for Digi decoders: returns ALL pending chunks,
+    in order, concatenated.
+
+    Unlike the WebRTC path, a decoder needs continuous audio: keeping only
+    the latest 30 ms frame and dropping the backlog fed a decoder ~30 ms out
+    of every ~80 ms tick, spliced together -- with 22 ms RTTY bits nothing
+    could be decoded, even though the tuning scope looked fine.
+    """
     with _raw_lock:
-        if _rx_raw_buffer_digi:
-            latest = _rx_raw_buffer_digi.pop()
-            _rx_raw_buffer_digi.clear()
-            return latest
-        return None
+        if not _rx_raw_buffer_digi:
+            return None
+        chunks = list(_rx_raw_buffer_digi)
+        _rx_raw_buffer_digi.clear()
+    if len(chunks) == 1:
+        return chunks[0]
+    return np.concatenate(chunks)
 
 
 def get_rx_sample_rate() -> int:
@@ -1603,7 +1618,9 @@ def _linux_process_tx_frame(state: dict) -> None:
         pc_channels = int(state.get("pc_channels") or pc_channels or 2)
 
     injected = _pop_tx_inject(radio_rate, frame_size)
-    inject_allowed = (_remote_mode or capture_mode == "app" or bool(_tx_tone_active))
+    inject_allowed = (
+        _remote_mode or capture_mode == "app" or bool(_tx_tone_active) or bool(_tx_digi_inject_active)
+    )
     if injected is not None and not inject_allowed:
         # Local mic TX must not be contaminated by stale WebRTC/digi chunks.
         injected = None
@@ -2016,6 +2033,19 @@ def inject_tx_audio(samples: np.ndarray, sample_rate: int) -> None:
         _tx_inject_buffer.append((data.copy(), rate))
 
 
+def tx_inject_pending_samples() -> int:
+    """Muestras inyectadas que el bucle TX aún no ha enviado a la tarjeta.
+    Lo usa un modo digital (RTTY) para no soltar el PTT antes de que suene
+    todo el mensaje: el bucle TX arranca ~0.1-0.5 s después del PTT (reabre
+    el proceso de audio en cada cambio RX->TX), así que un cálculo por reloj
+    se quedaba corto y cortaba el último carácter."""
+    with _tx_inject_lock:
+        pending = sum(int(chunk.shape[0]) for chunk, _rate in _tx_inject_buffer)
+        if _tx_inject_pending is not None:
+            pending += int(_tx_inject_pending.shape[0])
+    return pending
+
+
 def clear_tx_inject_buffer() -> None:
     """Limpia la cola de audio TX inyectado (WebRTC) para evitar audio viejo."""
     global _tx_inject_last_chunk, _tx_inject_last_time
@@ -2130,6 +2160,22 @@ def stop_tx_test_tone() -> None:
 
 def tx_test_tone_active() -> bool:
     return bool(_tx_tone_active)
+
+
+def set_tx_digi_inject_active(enabled: bool) -> None:
+    """Habilita/deshabilita que ``inject_tx_audio()`` module en modo local.
+
+    Lo llama un modo digital en proceso (p. ej. el plugin RTTY) alrededor de
+    su propio envío: sin esto, el bucle TX nativo descarta cualquier chunk
+    inyectado salvo en remoto/WebRTC, capture_mode "app" o con el tono de
+    prueba activo (ver ``inject_allowed`` en los bucles TX).
+    """
+    global _tx_digi_inject_active
+    _tx_digi_inject_active = bool(enabled)
+
+
+def tx_digi_inject_active() -> bool:
+    return bool(_tx_digi_inject_active)
 
 def verificar_datos(data, expected_channels):
     _debug(f"Verificando datos con {expected_channels} canales")
@@ -2388,7 +2434,7 @@ def tx_audio_stream():
         configured_source = str(config.get("Microfono_PC_Pulse", "") or config.get("Microfono_PC", "") or "")
         while tx_activo:
             injected = _pop_tx_inject(microfono_radio_framerate, tx_frame_size)
-            inject_allowed = (_remote_mode or bool(_tx_tone_active))
+            inject_allowed = (_remote_mode or bool(_tx_tone_active) or bool(_tx_digi_inject_active))
             if injected is not None and not inject_allowed:
                 # Fallback TX loop: ignore injected chunks unless remote/tone TX is active.
                 injected = None

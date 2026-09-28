@@ -88,11 +88,12 @@ class InstallerState:
 
         # Casillas de la pantalla de componentes -> variables de entorno
         # que ya entiende scripts/install.sh (mismos nombres, mismo significado).
-        # Los plugins van totalmente aparte de este instalador: no se
-        # incluyen, no se instalan y no se mencionan aquí.
         self.install_owrx = True          # SKIP_OWRX_BUILD = no install_owrx
         self.install_spots = True         # SKIP_SPIDER = no install_spots
         self.install_web_extras = True    # INSTALL_WEB_EXTRAS
+        # Plugins opcionales: desmarcados por defecto, solo si el usuario los pide.
+        self.install_plugin_rtty = False   # INSTALL_PLUGIN_RTTY
+        self.install_plugin_nmn1m = False  # INSTALL_PLUGIN_NMN1M
 
         self.launch_after = True
 
@@ -143,6 +144,8 @@ def run_install(state: InstallerState, log_queue: "queue.Queue[str]") -> int:
     env["SKIP_OWRX_BUILD"] = "0" if state.install_owrx else "1"
     env["SKIP_SPIDER"] = "0" if state.install_spots else "1"
     env["INSTALL_WEB_EXTRAS"] = "1" if state.install_web_extras else "0"
+    env["INSTALL_PLUGIN_RTTY"] = "1" if state.install_plugin_rtty else "0"
+    env["INSTALL_PLUGIN_NMN1M"] = "1" if state.install_plugin_nmn1m else "0"
 
     log_queue.put(f"==> Ejecutando {install_sh}\n")
     try:
@@ -533,6 +536,24 @@ class ComponentsPage(WizardPage):
             "apagado por defecto y exige contraseña antes de arrancar.",
         )
 
+        tk.Label(
+            self, text="Plugins opcionales", font=("TkDefaultFont", 11, "bold")
+        ).pack(anchor="w", pady=(12, 0))
+        self.var_plugin_rtty = tk.BooleanVar(value=self.state_.install_plugin_rtty)
+        self.var_plugin_nmn1m = tk.BooleanVar(value=self.state_.install_plugin_nmn1m)
+        self._check(
+            self.var_plugin_rtty,
+            "RTTY Power",
+            "Botón «RTTY»: decodificador y TX RTTY con el audio de la radio, "
+            "con ayudas para concursos.",
+        )
+        self._check(
+            self.var_plugin_nmn1m,
+            "Nunca Más, Ni Una Más (NMN1M)",
+            "Botón «Log»: cuaderno de estación y contest logger. Se descarga "
+            "de su página de GitHub durante la instalación.",
+        )
+
     def _check(self, var: tk.BooleanVar, title: str, desc: str) -> None:
         frame = tk.Frame(self)
         frame.pack(fill="x", pady=6, anchor="w")
@@ -546,6 +567,8 @@ class ComponentsPage(WizardPage):
         self.state_.install_owrx = self.var_owrx.get()
         self.state_.install_spots = self.var_spots.get()
         self.state_.install_web_extras = self.var_web.get()
+        self.state_.install_plugin_rtty = self.var_plugin_rtty.get()
+        self.state_.install_plugin_nmn1m = self.var_plugin_nmn1m.get()
         return True
 
 
@@ -572,6 +595,8 @@ class SummaryPage(WizardPage):
             f"· OpenWebRX+ y cascada SDR: {yes if s.install_owrx else no}",
             f"· Spots / DX Cluster: {yes if s.install_spots else no}",
             f"· Extras del servidor web remoto: {yes if s.install_web_extras else no}",
+            f"· Plugin RTTY Power: {yes if s.install_plugin_rtty else no}",
+            f"· Plugin NMN1M: {yes if s.install_plugin_nmn1m else no}",
             "",
             "Se te pedirá la contraseña de administrador en una ventana aparte "
             "cuando haga falta (una o varias veces, según la operación).",

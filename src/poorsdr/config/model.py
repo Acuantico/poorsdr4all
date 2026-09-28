@@ -366,23 +366,6 @@ class SpiderConfig(_Section):
 
 
 @dataclass(frozen=True)
-class RelayConfig(_Section):
-    enabled: bool = False
-    url: str = ""
-    api_key: str = ""
-    timeout_ms: int = 700
-    band_groups: dict[str, list[str]] = field(default_factory=dict)
-
-    _FIELDS: ClassVar[tuple[tuple[str, str], ...]] = (
-        ("FILTER_RELAY_WIFI_ENABLED", "enabled"),
-        ("FILTER_RELAY_WIFI_URL", "url"),
-        ("FILTER_RELAY_WIFI_API_KEY", "api_key"),
-        ("FILTER_RELAY_WIFI_TIMEOUT_MS", "timeout_ms"),
-        ("FILTER_RELAY_BAND_GROUPS", "band_groups"),
-    )
-
-
-@dataclass(frozen=True)
 class WebServerConfig(_Section):
     enabled: bool = False
     host: str = "127.0.0.1"
@@ -453,6 +436,13 @@ class UiConfig(_Section):
     owrx_window_geometry_backend: str = ""
     owrx_qpa_platform: str = ""
     digi_window_geometry: str = ""
+    #: Indicativo propio del operador -- fuente única para cualquier función
+    #: que necesite identificarte a TI (no a la estación con la que
+    #: trabajas): macro "CQ" del panel RTTY, campo OPERATOR del ADIF al
+    #: guardar un QSO, etc. Antes cada sitio que lo necesitaba tenía que
+    #: inventarse el suyo (o, en el caso de RTTY, ni lo tenía y mandaba el
+    #: literal "MYCALL").
+    operator_callsign: str = ""
 
     _FIELDS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("Idioma", "language"),
@@ -466,6 +456,7 @@ class UiConfig(_Section):
         ("OWRX_WINDOW_GEOMETRY_BACKEND", "owrx_window_geometry_backend"),
         ("OWRX_QPA_PLATFORM", "owrx_qpa_platform"),
         ("DIGI_WINDOW_GEOMETRY", "digi_window_geometry"),
+        ("Indicativo_Operador", "operator_callsign"),
     )
 
 
@@ -508,7 +499,6 @@ _SECTION_TYPES: tuple[tuple[str, type[_Section]], ...] = (
     ("n1m", N1mConfig),
     ("owrx", OwrxConfig),
     ("spider", SpiderConfig),
-    ("relays", RelayConfig),
     ("web", WebServerConfig),
     ("autocall", AutocallConfig),
     ("ui", UiConfig),
@@ -545,7 +535,6 @@ class AppConfig:
     n1m: N1mConfig = field(default_factory=N1mConfig)
     owrx: OwrxConfig = field(default_factory=OwrxConfig)
     spider: SpiderConfig = field(default_factory=SpiderConfig)
-    relays: RelayConfig = field(default_factory=RelayConfig)
     web: WebServerConfig = field(default_factory=WebServerConfig)
     autocall: AutocallConfig = field(default_factory=AutocallConfig)
     ui: UiConfig = field(default_factory=UiConfig)
@@ -572,7 +561,6 @@ class AppConfig:
             n1m=N1mConfig.from_legacy(merged),
             owrx=OwrxConfig.from_legacy(merged),
             spider=SpiderConfig.from_legacy(merged),
-            relays=RelayConfig.from_legacy(merged),
             web=WebServerConfig.from_legacy(merged),
             autocall=AutocallConfig.from_legacy(merged),
             ui=UiConfig.from_legacy(merged),
@@ -666,7 +654,6 @@ __all__ = [
     "HamlibConfig",
     "N1mConfig",
     "OwrxConfig",
-    "RelayConfig",
     "RigctldConfig",
     "SpiderConfig",
     "SpotsConfig",

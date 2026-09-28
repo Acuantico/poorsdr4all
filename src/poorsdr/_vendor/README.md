@@ -13,7 +13,6 @@ pública**: los desarrolladores de la comunidad trabajan sobre `poorsdr/`
 | `cat.py` | `services/radio.py` | CAT serie (Kenwood/TS-480) |
 | `rigctld_proxy.py` | `services/rigctld.py` | servidor proxy hamlib TCP |
 | `ts480_emulator.py` | `services/n1m.py` | emulador TS-480 para N1MM |
-| `filter_relays_wifi.py` | `services/filter_relays.py` | relés de filtros por HTTP |
 | `owrx_client.py` | `services/owrx_client.py` | cliente WebSocket de control OWRX |
 | `webserver.py` (+ `webui/`) | `services/web.py` | servidor web remoto FastAPI/WebRTC |
 | `paths.py`, `platform_config.py` | deps internas | resolución de rutas y saneado de config |

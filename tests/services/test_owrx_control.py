@@ -115,14 +115,32 @@ class OwrxControlServiceTests(unittest.TestCase):
         self.assertEqual(self.pushes, [])
 
     def test_tune_message_publishes_event(self):
+        # "user": True == el operador hizo clic/rueda de verdad sobre la
+        # cascada (ver viewers/waterfall.py: _on_click/_tune_step). Sin ese
+        # flag, el visor solo está confirmando/reportando, no pidiendo
+        # sintonizar la radio -- ver test_tune_without_user_flag_is_ignored.
         s = self._connect()
         self._drain(s)
-        s.sendall((json.dumps({"type": "tune", "frequency": 14074000, "mode": "usb"}) + "\n").encode())
+        s.sendall(
+            (json.dumps({"type": "tune", "frequency": 14074000, "mode": "usb", "user": True}) + "\n").encode()
+        )
         for _ in range(50):
             if self.tunes:
                 break
             time.sleep(0.01)
         self.assertEqual(self.tunes[0]["hz"], 14074000)
+
+    def test_tune_without_user_flag_is_ignored(self):
+        # Confirmación del visor tras aplicar un "tune" que le mandamos
+        # nosotros (p. ej. al conectar) o el centro por defecto de un perfil
+        # recién seleccionado -- no debe arrastrar la frecuencia del uSDX.
+        s = self._connect()
+        self._drain(s)
+        s.sendall((json.dumps({"type": "tune", "frequency": 99_999_000, "mode": "usb"}) + "\n").encode())
+        # No hay forma directa de "esperar a que no pase nada"; se comprueba
+        # tras una espera corta que el tune sin "user" nunca llegó.
+        time.sleep(0.1)
+        self.assertEqual(self.tunes, [])
 
     def test_smeter_message_publishes_event(self):
         levels: list[dict] = []

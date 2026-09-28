@@ -155,21 +155,21 @@ class BuildConfigTests(unittest.TestCase):
         self.assertEqual(cfg.autocall.profiles[0]["Audio"], "cq.wav")
 
     def test_extra_fields_from_a_plugin_tab(self):
-        # "Relés" ya no está en TABS: la aporta el plugin filter_relays vía
-        # PluginContext.add_settings_tab, con sus propios Field.
-        relay_field = Field("relays", "band_groups", "Grupos de banda (JSON)", "json")
+        # Un plugin aporta su pestaña vía PluginContext.add_settings_tab, con
+        # sus propios Field (aquí uno que no está en ninguna pestaña fija).
+        plugin_field = Field("ui", "digi_window_geometry", "Geometría")
         cfg = build_config(
             AppConfig(),
-            {("relays", "band_groups"): '{"40": ["40m"]}'},
-            extra_fields=[relay_field],
+            {("ui", "digi_window_geometry"): "800x600+0+0"},
+            extra_fields=[plugin_field],
         )
-        self.assertEqual(cfg.relays.band_groups["40"], ["40m"])
+        self.assertEqual(cfg.ui.digi_window_geometry, "800x600+0+0")
 
     def test_unknown_field_without_extra_fields_is_ignored(self):
         # Sin declarar el Field del plugin, la clave se descarta sin más
-        # (la pestaña "Relés" no aparece si el plugin no está instalado).
-        cfg = build_config(AppConfig(), {("relays", "band_groups"): '{"40": ["40m"]}'})
-        self.assertEqual(cfg.relays.band_groups, {})
+        # (su pestaña no aparece si el plugin no está instalado).
+        cfg = build_config(AppConfig(), {("ui", "digi_window_geometry"): "800x600+0+0"})
+        self.assertEqual(cfg.ui.digi_window_geometry, "")
 
     def test_bad_json_raises(self):
         with self.assertRaises(ValueError):

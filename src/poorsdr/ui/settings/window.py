@@ -80,7 +80,7 @@ class SettingsWindow:
         self.top.configure(bg=sstyle.BG)
         sstyle.apply(self.top, accent)
 
-        # Pestañas fijas + las que aporten los plugins activos (p. ej. "Relés").
+        # Pestañas fijas + las que aporten los plugins activos.
         all_tabs: dict[str, tuple] = dict(TABS)
         for plugin_tab in self._plugin_tabs:
             all_tabs[plugin_tab.name] = plugin_tab.fields

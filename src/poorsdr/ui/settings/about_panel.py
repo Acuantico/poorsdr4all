@@ -15,7 +15,7 @@ from poorsdr.i18n.settings_labels import field_label
 from poorsdr.ui.settings.style import BORDER, FG, MUTED, PANEL
 
 _APP_NAME = "PoorSDR4All"
-_VERSION = "1.0.0a1 · Alpha"
+_VERSION = "1.0.0a2 · Alpha"
 _AUTHOR = "Acuantico Power"
 _WEBSITE_LABEL = "acuanticopower.com/poorsdr4all"
 _WEBSITE_URL = f"https://{_WEBSITE_LABEL}"

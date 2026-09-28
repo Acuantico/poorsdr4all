@@ -14,7 +14,7 @@ compilados localmente ni archivos de configuración del operador.
    nativa.
 5. Instalar cada wheel en un entorno virtual vacío y repetir las pruebas smoke.
 6. Esperar a que la CI de Linux, Arch y Windows termine correctamente.
-7. Crear el tag `v1.0.0a1` y adjuntar los sdists/wheels generados por CI.
+7. Crear el tag `vX.Y.Z` (p. ej. `v1.0.0a2`) y adjuntar los sdists/wheels generados por CI.
 
 La prueba en Arch del mantenedor es la validación funcional principal. Los
 resultados automatizados de otras plataformas deben etiquetarse como tales; no

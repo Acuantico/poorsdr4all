@@ -642,7 +642,7 @@ class SpiderD:
                 mode = "SSB"
         if mode == "DIGI":
             mode = "FT8"
-        if mode in {"UNK", "UNKNOWN", "PHONE", "PH", "FONIA", "VOICE"}:
+        if mode in {"UNK", "UNKNOWN", "PHONE", "PH", "PHO", "FONIA", "VOICE", "USB", "LSB"}:
             mode = "SSB"
         spotter = str(raw.get("src") or raw.get("spotter") or "").upper()
         band = raw_band or band_for_freq(freq_hz)

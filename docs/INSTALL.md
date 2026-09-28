@@ -92,9 +92,17 @@ con `python scripts/check_owrx_config.py`.
 
 ## Plugins
 
+Opcionales; PoorSDR4All funciona sin ninguno. Se instalan en el mismo entorno:
+
 ```sh
-python -m pip install ./plugins/filter-relays
+python -m pip install ./plugins/rtty-power
 ```
+
+`install.sh` puede instalarlos en el mismo paso: `INSTALL_PLUGIN_RTTY=1` (RTTY
+Power, desde `plugins/rtty-power`) e `INSTALL_PLUGIN_NMN1M=1` (NMN1M,
+descargado de su release en GitHub; `PIN_NMN1M` elige la versión). El
+instalador gráfico ofrece los mismos plugins como casillas, desmarcadas por
+defecto.
 
 **Nunca Más, Ni Una Más (NMN1M)**, el cuaderno de estación / contest logger que
 aporta el botón «Log», es un proyecto independiente con su propio

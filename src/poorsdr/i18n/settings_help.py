@@ -102,6 +102,11 @@ HELP: dict[str, dict[str, str]] = {
             "Déjalo vacío para conservar la contraseña actual. Se guarda "
             "salada y con hash, nunca en claro."
         ),
+        "help_ui_operator_callsign": (
+            "Tu indicativo (no el del corresponsal). Se usa para identificarte en "
+            "los macros que lo necesiten (p. ej. el CQ del panel RTTY) y como "
+            "OPERATOR al guardar un QSO en el log."
+        ),
         "help_ui_language": (
             "Idioma de los textos de la consola. (Aún en desarrollo: hoy solo "
             "afecta a algunos textos.)"
@@ -121,11 +126,6 @@ HELP: dict[str, dict[str, str]] = {
         ),
         "help_hotkeys_clear": "Borra el atajo asignado a esta acción.",
         "help_plugins_restart": "Los cambios se aplican al reiniciar PoorSDR.",
-        "help_relays_enabled": "Activa el control de relés de filtro por banda vía WiFi (placa ESP).",
-        "help_relays_url": "Dirección HTTP de la placa ESP que controla los relés (p. ej. http://192.168.1.50).",
-        "help_relays_api_key": "Clave de API de la placa ESP, si la tiene configurada (vacío si no hace falta).",
-        "help_relays_timeout_ms": "Milisegundos de espera antes de dar por fallida una petición a la placa ESP.",
-        "help_relays_band_groups": 'Mapa banda→grupo de relé, p. ej. {"40m": "40", "20m": "20"}.',
     },
     "en": {
         "help_cat_port": "Serial device for the CAT cable (e.g. /dev/ttyUSB0).",
@@ -203,6 +203,11 @@ HELP: dict[str, dict[str, str]] = {
         "help_web_auto_https": "Generates and uses an HTTPS certificate automatically instead of plain HTTP.",
         "help_web_user": "Username to log in to the web panel.",
         "help_web_password": "Leave empty to keep the current password. Stored salted and hashed, never in plain text.",
+        "help_ui_operator_callsign": (
+            "Your own callsign (not the station you're working). Used to identify "
+            "yourself in macros that need it (e.g. the RTTY panel's CQ) and as the "
+            "OPERATOR field when logging a QSO."
+        ),
         "help_ui_language": (
             "Language for the console's text. (Still in progress: today it "
             "only affects some texts.)"
@@ -219,11 +224,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Click, then press the key you want to assign to this action. 'Escape' clears it.",
         "help_hotkeys_clear": "Clears the hotkey assigned to this action.",
         "help_plugins_restart": "Changes apply when PoorSDR restarts.",
-        "help_relays_enabled": "Enables band filter relay control over WiFi (ESP board).",
-        "help_relays_url": "HTTP address of the ESP board that controls the relays (e.g. http://192.168.1.50).",
-        "help_relays_api_key": "API key for the ESP board, if it has one configured (empty if not needed).",
-        "help_relays_timeout_ms": "Milliseconds to wait before treating a request to the ESP board as failed.",
-        "help_relays_band_groups": 'Band→relay group map, e.g. {"40m": "40", "20m": "20"}.',
     },
     "fr": {
         "help_cat_port": "Périphérique série du câble CAT (p. ex. /dev/ttyUSB0).",
@@ -318,11 +318,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Cliquez puis appuyez sur la touche à assigner à cette action. « Échap » l'efface.",
         "help_hotkeys_clear": "Efface le raccourci assigné à cette action.",
         "help_plugins_restart": "Les changements s'appliquent au redémarrage de PoorSDR.",
-        "help_relays_enabled": "Active le contrôle des relais de filtre par bande via WiFi (carte ESP).",
-        "help_relays_url": "Adresse HTTP de la carte ESP qui contrôle les relais (p. ex. http://192.168.1.50).",
-        "help_relays_api_key": "Clé API de la carte ESP, si elle en a une configurée (vide si inutile).",
-        "help_relays_timeout_ms": "Millisecondes d'attente avant de considérer une requête à la carte ESP comme échouée.",
-        "help_relays_band_groups": 'Correspondance bande→groupe de relais, p. ex. {"40m": "40", "20m": "20"}.',
     },
     "de": {
         "help_cat_port": "Serielles Gerät des CAT-Kabels (z. B. /dev/ttyUSB0).",
@@ -422,11 +417,6 @@ HELP: dict[str, dict[str, str]] = {
         ),
         "help_hotkeys_clear": "Löscht das dieser Aktion zugewiesene Tastenkürzel.",
         "help_plugins_restart": "Änderungen wirken nach einem Neustart von PoorSDR.",
-        "help_relays_enabled": "Aktiviert die Steuerung der Bandfilter-Relais über WLAN (ESP-Board).",
-        "help_relays_url": "HTTP-Adresse des ESP-Boards, das die Relais steuert (z. B. http://192.168.1.50).",
-        "help_relays_api_key": "API-Schlüssel des ESP-Boards, falls konfiguriert (leer, falls nicht nötig).",
-        "help_relays_timeout_ms": "Millisekunden Wartezeit, bevor eine Anfrage an das ESP-Board als fehlgeschlagen gilt.",
-        "help_relays_band_groups": 'Zuordnung Band→Relaisgruppe, z. B. {"40m": "40", "20m": "20"}.',
     },
     "it": {
         "help_cat_port": "Dispositivo seriale del cavo CAT (es. /dev/ttyUSB0).",
@@ -523,11 +513,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Clicca e poi premi il tasto da assegnare a questa azione. «Esc» lo cancella.",
         "help_hotkeys_clear": "Cancella la scorciatoia assegnata a questa azione.",
         "help_plugins_restart": "Le modifiche si applicano al riavvio di PoorSDR.",
-        "help_relays_enabled": "Attiva il controllo dei relè filtro per banda via WiFi (scheda ESP).",
-        "help_relays_url": "Indirizzo HTTP della scheda ESP che controlla i relè (es. http://192.168.1.50).",
-        "help_relays_api_key": "Chiave API della scheda ESP, se configurata (vuoto se non serve).",
-        "help_relays_timeout_ms": "Millisecondi di attesa prima di considerare fallita una richiesta alla scheda ESP.",
-        "help_relays_band_groups": 'Mappa banda→gruppo relè, es. {"40m": "40", "20m": "20"}.',
     },
     "pt": {
         "help_cat_port": "Dispositivo série do cabo CAT (ex. /dev/ttyUSB0).",
@@ -622,11 +607,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Clica e depois pressiona a tecla a atribuir a esta ação. «Escape» apaga-a.",
         "help_hotkeys_clear": "Apaga o atalho atribuído a esta ação.",
         "help_plugins_restart": "As alterações aplicam-se ao reiniciar o PoorSDR.",
-        "help_relays_enabled": "Ativa o controlo dos relés de filtro por banda via WiFi (placa ESP).",
-        "help_relays_url": "Endereço HTTP da placa ESP que controla os relés (ex. http://192.168.1.50).",
-        "help_relays_api_key": "Chave de API da placa ESP, se estiver configurada (vazio se não for preciso).",
-        "help_relays_timeout_ms": "Milissegundos de espera antes de considerar falhado um pedido à placa ESP.",
-        "help_relays_band_groups": 'Mapa banda→grupo de relé, ex. {"40m": "40", "20m": "20"}.',
     },
     "ca": {
         "help_cat_port": "Dispositiu sèrie del cable CAT (p. ex. /dev/ttyUSB0).",
@@ -721,11 +701,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Fes clic i prem la tecla que vulguis assignar a aquesta acció. «Escape» l'esborra.",
         "help_hotkeys_clear": "Esborra la drecera assignada a aquesta acció.",
         "help_plugins_restart": "Els canvis s'apliquen en reiniciar PoorSDR.",
-        "help_relays_enabled": "Activa el control dels relés de filtre per banda via WiFi (placa ESP).",
-        "help_relays_url": "Adreça HTTP de la placa ESP que controla els relés (p. ex. http://192.168.1.50).",
-        "help_relays_api_key": "Clau d'API de la placa ESP, si en té una configurada (buit si no cal).",
-        "help_relays_timeout_ms": "Mil·lisegons d'espera abans de donar per fallida una petició a la placa ESP.",
-        "help_relays_band_groups": 'Mapa banda→grup de relé, p. ex. {"40m": "40", "20m": "20"}.',
     },
     "gl": {
         "help_cat_port": "Dispositivo serie do cable CAT (p. ex. /dev/ttyUSB0).",
@@ -819,11 +794,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Fai clic e preme a tecla que queiras asignar a esta acción. «Escape» bórraa.",
         "help_hotkeys_clear": "Borra o atallo asignado a esta acción.",
         "help_plugins_restart": "Os cambios aplícanse ao reiniciar PoorSDR.",
-        "help_relays_enabled": "Activa o control dos relés de filtro por banda vía WiFi (placa ESP).",
-        "help_relays_url": "Enderezo HTTP da placa ESP que controla os relés (p. ex. http://192.168.1.50).",
-        "help_relays_api_key": "Clave de API da placa ESP, se a ten configurada (baleiro se non fai falla).",
-        "help_relays_timeout_ms": "Milisegundos de espera antes de dar por fallida unha petición á placa ESP.",
-        "help_relays_band_groups": 'Mapa banda→grupo de relé, p. ex. {"40m": "40", "20m": "20"}.',
     },
     "eu": {
         "help_cat_port": "CAT kablearen gailu seriea (adib. /dev/ttyUSB0).",
@@ -923,11 +893,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Egin klik eta ekintza honi esleitu nahi diozun tekla sakatu. «Escape»-k ezabatzen du.",
         "help_hotkeys_clear": "Ekintza honi esleitutako lasterbidea ezabatzen du.",
         "help_plugins_restart": "Aldaketak PoorSDR berrabiaraztean aplikatzen dira.",
-        "help_relays_enabled": "Bandaka iragazki-erreleen kontrola aktibatzen du WiFi bidez (ESP plaka).",
-        "help_relays_url": "Erreleak kontrolatzen dituen ESP plakaren HTTP helbidea (adib. http://192.168.1.50).",
-        "help_relays_api_key": "ESP plakaren API gakoa, konfiguratuta badu (hutsik behar ez bada).",
-        "help_relays_timeout_ms": "ESP plakarako eskaera bat huts egindakotzat jo aurretik itxaroteko milisegundoak.",
-        "help_relays_band_groups": 'Banda→errele talde mapa, adib. {"40m": "40", "20m": "20"}.',
     },
     "pl": {
         "help_cat_port": "Urządzenie szeregowe kabla CAT (np. /dev/ttyUSB0).",
@@ -1024,11 +989,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Kliknij, a potem naciśnij klawisz, który chcesz przypisać do tej akcji. „Escape” go czyści.",
         "help_hotkeys_clear": "Czyści skrót przypisany do tej akcji.",
         "help_plugins_restart": "Zmiany zostaną zastosowane po ponownym uruchomieniu PoorSDR.",
-        "help_relays_enabled": "Włącza sterowanie przekaźnikami filtrów pasmowych przez WiFi (płytka ESP).",
-        "help_relays_url": "Adres HTTP płytki ESP sterującej przekaźnikami (np. http://192.168.1.50).",
-        "help_relays_api_key": "Klucz API płytki ESP, jeśli jest skonfigurowany (puste, jeśli niepotrzebny).",
-        "help_relays_timeout_ms": "Milisekundy oczekiwania, zanim żądanie do płytki ESP zostanie uznane za nieudane.",
-        "help_relays_band_groups": 'Mapa pasmo→grupa przekaźnika, np. {"40m": "40", "20m": "20"}.',
     },
     "ru": {
         "help_cat_port": "Последовательное устройство кабеля CAT (напр. /dev/ttyUSB0).",
@@ -1123,11 +1083,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Нажмите, затем нажмите клавишу, которую хотите назначить этому действию. «Escape» очищает.",
         "help_hotkeys_clear": "Очищает горячую клавишу, назначенную этому действию.",
         "help_plugins_restart": "Изменения применяются при перезапуске PoorSDR.",
-        "help_relays_enabled": "Включает управление реле полосовых фильтров по WiFi (плата ESP).",
-        "help_relays_url": "HTTP-адрес платы ESP, управляющей реле (напр. http://192.168.1.50).",
-        "help_relays_api_key": "API-ключ платы ESP, если он настроен (пусто, если не нужен).",
-        "help_relays_timeout_ms": "Миллисекунды ожидания, прежде чем запрос к плате ESP считается неудачным.",
-        "help_relays_band_groups": 'Карта диапазон→группа реле, напр. {"40m": "40", "20m": "20"}.',
     },
     "tr": {
         "help_cat_port": "CAT kablosunun seri aygıtı (örn. /dev/ttyUSB0).",
@@ -1226,11 +1181,6 @@ HELP: dict[str, dict[str, str]] = {
         "help_hotkeys_capture": "Tıklayın, ardından bu eyleme atamak istediğiniz tuşa basın. 'Escape' temizler.",
         "help_hotkeys_clear": "Bu eyleme atanan kısayolu temizler.",
         "help_plugins_restart": "Değişiklikler PoorSDR yeniden başlatıldığında uygulanır.",
-        "help_relays_enabled": "WiFi üzerinden bant filtresi röle kontrolünü etkinleştirir (ESP kart).",
-        "help_relays_url": "Röleleri kontrol eden ESP kartının HTTP adresi (örn. http://192.168.1.50).",
-        "help_relays_api_key": "ESP kartının API anahtarı, ayarlıysa (gerekmiyorsa boş).",
-        "help_relays_timeout_ms": "ESP kartına yapılan bir isteğin başarısız sayılmadan önce beklenecek milisaniye.",
-        "help_relays_band_groups": 'Bant→röle grubu eşlemesi, örn. {"40m": "40", "20m": "20"}.',
     },
 }
 

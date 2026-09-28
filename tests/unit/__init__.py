@@ -1,6 +1,6 @@
 """Tests de los módulos vendorizados en ``poorsdr._vendor``.
 
-Prueban la lógica de bajo nivel (dominios de audio, relés, visores) tal cual se
+Prueban la lógica de bajo nivel (dominios de audio, visores) tal cual se
 distribuye. Al importar este paquete se añaden ``src`` y ``src/poorsdr/_vendor``
 a ``sys.path`` para que resuelvan tanto ``import audio_config_domain`` como
 ``import poorsdr...``.

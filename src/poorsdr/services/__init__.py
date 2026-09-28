@@ -11,7 +11,6 @@ from poorsdr.services.base import (
     ServiceState,
     ServiceStatus,
 )
-from poorsdr.services.filter_relays import FilterRelayService
 from poorsdr.services.memory import MemoryService
 from poorsdr.services.n1m import N1mService
 from poorsdr.services.owrx_backend import OwrxBackendService
@@ -26,7 +25,6 @@ __all__ = [
     "AudioService",
     "AutocallService",
     "BaseService",
-    "FilterRelayService",
     "MemoryService",
     "N1mService",
     "OwrxBackendService",

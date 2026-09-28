@@ -49,10 +49,10 @@ def main() -> int:
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     )
     expected_names = {
-        "poorsdr4all-1.0.0a1-py3-none-any.whl",
-        "poorsdr4all-1.0.0a1.tar.gz",
-        "poorsdr_filter_relays-1.0.0a1-py3-none-any.whl",
-        "poorsdr_filter_relays-1.0.0a1.tar.gz",
+        "poorsdr4all-1.0.0a2-py3-none-any.whl",
+        "poorsdr4all-1.0.0a2.tar.gz",
+        "poorsdr_rtty_power-0.1.0a1-py3-none-any.whl",
+        "poorsdr_rtty_power-0.1.0a1.tar.gz",
     }
     actual_names = {path.name for path in archives}
     for missing in sorted(expected_names - actual_names):

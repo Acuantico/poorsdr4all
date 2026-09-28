@@ -3,18 +3,18 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "poorsdr-filter-relays"
-version = "1.0.0a1"
-description = "Plugin de relés de filtros WiFi por banda para PoorSDR4All"
+name = "poorsdr-rtty-power"
+version = "0.1.0a1"
+description = "Plugin RTTY para PoorSDR4All: decodificador, TX por macros y ayudas para el CQ WW RTTY"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "PolyForm-Noncommercial-1.0.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Acuantico Power" }]
-dependencies = ["poorsdr4all"]
+dependencies = ["poorsdr4all>=1.0.0a2", "numpy"]
 
 [project.entry-points."poorsdr.plugins"]
-filter_relays = "poorsdr_filter_relays.plugin:PLUGIN"
+rtty_power = "poorsdr_rtty_power.plugin:PLUGIN"
 
 [tool.setuptools.packages.find]
 where = ["src"]

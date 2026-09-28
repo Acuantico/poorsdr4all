@@ -2,6 +2,33 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.0a2]
+
+### Añadido
+
+- Plugin opcional **RTTY Power** (`plugins/rtty-power`): decodificador y TX
+  RTTY con el audio del uSDX, con ayudas para el CQ WW RTTY.
+- El instalador gráfico y `install.sh` pueden instalar los plugins opcionales
+  (RTTY Power y NMN1M) si el usuario lo elige (`INSTALL_PLUGIN_RTTY`,
+  `INSTALL_PLUGIN_NMN1M`).
+- Ajustes → Interfaz → **Mi indicativo** (`Indicativo_Operador`), para los
+  plugins que necesiten identificarte.
+- Soporte en el núcleo para plugins de modo digital: la cola de audio digi
+  entrega todo el audio pendiente (antes solo el último trozo), inyección de
+  TX en modo local (`set_tx_digi_inject_active`), muestras pendientes de
+  enviar (`tx_inject_pending_samples`) y ancho del selector de la cascada de
+  OWRX impuesto por un plugin (`set_audio_passband`).
+
+### Corregido
+
+- Al abrir la cascada de OWRX se lee el CAT antes de enviarle la frecuencia,
+  y los "tune" que el visor manda sin intervención del operador ya no mueven
+  la radio.
+- Los spots en modo USB/LSB/PHO se clasifican como SSB.
+- La ventana principal se identifica como «PoorSDR4All» en la barra de tareas.
+- Guardar el layout con la pantalla escalada ya no desplaza ni encoge los
+  elementos al volver a abrir.
+
 ## [1.0.0a1] — Alpha inicial
 
 Punto de partida del proyecto: una consola completa para transceptores de la
@@ -17,9 +44,9 @@ organizada en un paquete limpio y distribuible.
   perfiles de radio para adaptar baudrate/PTT a variantes de la familia uSDX),
   `bands`, `tuning`, `waterfall`, `theme`, `memory`, `autocall`,
   `owrx` (backend systemd, sync, spiderd).
-- **`poorsdr/services`** — 12 servicios con `start`/`stop`/`reconfigure` que
+- **`poorsdr/services`** — 11 servicios con `start`/`stop`/`reconfigure` que
   envuelven el hardware y los procesos externos, comunicándose por el bus:
-  `radio`, `audio`, `rigctld`, `n1m`, `filter-relays`, `autocall`,
+  `radio`, `audio`, `rigctld`, `n1m`, `autocall`,
   `owrx-backend`, `owrx-client`, `owrx-control`, `spiderd`, `web`, `memory`.
   Fábricas inyectables → tests sin hardware.
 - **`poorsdr/ui`** — Tkinter fino. `main_window` implementa la consola

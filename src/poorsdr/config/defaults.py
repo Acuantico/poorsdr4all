@@ -59,8 +59,6 @@ DEFAULT_HOTKEYS: dict[str, str] = {
 
 DEFAULT_DSP_FILTERS: dict[str, Any] = {"anr": {"enabled": False, "intensity": 1}}
 
-DEFAULT_FILTER_RELAY_BAND_GROUPS: dict[str, list[str]] = {}
-
 # Claves legacy → valor por defecto. La migración parte de esta base y encima
 # aplica lo que traiga el ``config.json`` del usuario.
 LEGACY_DEFAULTS: dict[str, Any] = {
@@ -142,12 +140,6 @@ LEGACY_DEFAULTS: dict[str, Any] = {
     "SPIDER_TELNET_PORT": 7300,
     "SPIDER_TELNET_CALL": "",
     "SPIDER_TELNET_PASS": "",
-    # -- Relés de filtros WiFi -------------------------------------------
-    "FILTER_RELAY_WIFI_ENABLED": False,
-    "FILTER_RELAY_WIFI_URL": "",
-    "FILTER_RELAY_WIFI_API_KEY": "",
-    "FILTER_RELAY_WIFI_TIMEOUT_MS": 700,
-    "FILTER_RELAY_BAND_GROUPS": DEFAULT_FILTER_RELAY_BAND_GROUPS,
     # -- Servidor web remoto -------------------------------------------
     "WEB_SERVER_ENABLED": False,
     "WEB_SERVER_HOST": "127.0.0.1",
@@ -180,6 +172,7 @@ LEGACY_DEFAULTS: dict[str, Any] = {
     "OWRX_WINDOW_GEOMETRY_BACKEND": "",
     "OWRX_QPA_PLATFORM": "",
     "DIGI_WINDOW_GEOMETRY": "",
+    "Indicativo_Operador": "",
     # -- DSP -----------------------------------------------------------
     "ANR_Enabled": False,
     "ANR_Intensity": 1,
@@ -212,7 +205,6 @@ def legacy_defaults() -> dict[str, Any]:
 
 __all__ = [
     "DEFAULT_DSP_FILTERS",
-    "DEFAULT_FILTER_RELAY_BAND_GROUPS",
     "DEFAULT_HOTKEYS",
     "DEFAULT_OWRX_BAND_PROFILES",
     "LEGACY_DEFAULTS",

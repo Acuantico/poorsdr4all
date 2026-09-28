@@ -406,19 +406,28 @@ class MainWindow:
             self._save_layout()
 
     def _save_layout(self) -> None:
+        # ``place_info()`` devuelve los píxeles YA escalados (_place() los
+        # multiplicó por self._scale al colocar el widget). Si se guardaran
+        # tal cual, la próxima vez _place() los multiplicaría otra vez por
+        # self._scale -- doble escalado, y el elemento movido queda cada vez
+        # más pequeño/desplazado que el resto en cuanto la pantalla no dé
+        # factor 1.0 exacto. Hay que deshacer aquí la escala para guardar
+        # siempre en unidades de "diseño de referencia", igual que
+        # LAYOUT_DEFAULTS.
+        scale = self._scale if self._scale > 0.01 else 1.0
         positions: dict[str, dict[str, object]] = {}
         for name, widget in self._placed.items():
             try:
                 info = widget.place_info()
                 entry: dict[str, object] = {
-                    "x": int(float(info.get("x", 0) or 0)),
-                    "y": int(float(info.get("y", 0) or 0)),
+                    "x": round(float(info.get("x", 0) or 0) / scale),
+                    "y": round(float(info.get("y", 0) or 0) / scale),
                     "anchor": info.get("anchor") or "nw",
                 }
                 for key in ("width", "height"):
                     raw = info.get(key)
                     if raw not in (None, "", "0"):
-                        entry[key] = int(float(raw))
+                        entry[key] = round(float(raw) / scale)
                 positions[name] = entry
             except (tk.TclError, TypeError, ValueError):
                 continue

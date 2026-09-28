@@ -164,8 +164,13 @@ def build_context(
         if audio is None:
             audio = AudioService(ctx.bus, ctx.config)
             ctx.services.register(audio)
+        if radio is None:
+            radio = RadioService(ctx.bus, ctx.config)
+            ctx.services.register(radio)
         ctx.services.register(
-            OwrxControlService(ctx.bus, ctx.config, audio_push=audio.push_owrx_chunk)
+            OwrxControlService(
+                ctx.bus, ctx.config, audio_push=audio.push_owrx_chunk, radio=radio
+            )
         )
     if "spiderd" in wanted:
         ctx.services.register(SpiderdService(ctx.bus, ctx.config))

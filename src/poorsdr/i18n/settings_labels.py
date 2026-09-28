@@ -24,7 +24,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autollamada",
         "label_tab_hotkeys": "Atajos",
         "label_tab_about": "Acerca de",
-        "label_tab_relays": "Relés",
         # Radio / CAT
         "label_cat_port": "Puerto CAT",
         "label_cat_rig_profile": "Perfil de radio",
@@ -73,15 +72,10 @@ LABELS: dict[str, dict[str, str]] = {
         "label_web_user": "Usuario",
         "label_web_password": "Contraseña",
         # Interfaz
+        "label_ui_operator_callsign": "Mi indicativo",
         "label_ui_language": "Idioma",
         "label_ui_theme": "Tema",
         "label_ui_display_mode": "Modo por defecto",
-        # Relés (plugin filter_relays)
-        "label_relays_enabled": "Relés WiFi",
-        "label_relays_url": "URL del ESP",
-        "label_relays_api_key": "API key",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Grupos de banda (JSON)",
         # Ventana / diálogo
         "label_window_title": "Ajustes",
         "label_save": "Guardar",
@@ -133,7 +127,7 @@ LABELS: dict[str, dict[str, str]] = {
         # Plugins
         "label_no_plugins": (
             "No hay plugins instalados. Instala uno con «pip install …» (p. ej. "
-            "Nunca Más, Ni Una Más o los relés WiFi) y reinicia PoorSDR."
+            "Nunca Más, Ni Una Más o RTTY Power) y reinicia PoorSDR."
         ),
         # Acerca de
         "label_about_version": "Versión {version}",
@@ -150,7 +144,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Auto-call",
         "label_tab_hotkeys": "Hotkeys",
         "label_tab_about": "About",
-        "label_tab_relays": "Relays",
         "label_cat_port": "CAT port",
         "label_cat_rig_profile": "Rig profile",
         "label_cat_baud": "Baud rate",
@@ -193,14 +186,10 @@ LABELS: dict[str, dict[str, str]] = {
         "label_web_auto_https": "Auto HTTPS",
         "label_web_user": "Username",
         "label_web_password": "Password",
+        "label_ui_operator_callsign": "My callsign",
         "label_ui_language": "Language",
         "label_ui_theme": "Theme",
         "label_ui_display_mode": "Default mode",
-        "label_relays_enabled": "WiFi relays",
-        "label_relays_url": "ESP URL",
-        "label_relays_api_key": "API key",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Band groups (JSON)",
         "label_window_title": "Settings",
         "label_save": "Save",
         "label_cancel": "Cancel",
@@ -248,7 +237,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Auto-call 4",
         "label_no_plugins": (
             "No plugins installed. Install one with 'pip install …' (e.g. "
-            "Nunca Más, Ni Una Más or the WiFi relays) and restart PoorSDR."
+            "Nunca Más, Ni Una Más or RTTY Power) and restart PoorSDR."
         ),
         "label_about_version": "Version {version}",
         "label_about_author": "Author: {author}",
@@ -264,7 +253,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Appel auto",
         "label_tab_hotkeys": "Raccourcis",
         "label_tab_about": "À propos",
-        "label_tab_relays": "Relais",
         "label_cat_port": "Port CAT",
         "label_cat_rig_profile": "Profil de radio",
         "label_cat_baud": "Bauds",
@@ -310,11 +298,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Langue",
         "label_ui_theme": "Thème",
         "label_ui_display_mode": "Mode par défaut",
-        "label_relays_enabled": "Relais WiFi",
-        "label_relays_url": "URL de l'ESP",
-        "label_relays_api_key": "Clé API",
-        "label_relays_timeout_ms": "Délai (ms)",
-        "label_relays_band_groups": "Groupes de bande (JSON)",
         "label_window_title": "Réglages",
         "label_save": "Enregistrer",
         "label_cancel": "Annuler",
@@ -362,7 +345,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Appel auto 4",
         "label_no_plugins": (
             "Aucun plugin installé. Installez-en un avec « pip install … » "
-            "(p. ex. Nunca Más, Ni Una Más ou les relais WiFi) puis redémarrez "
+            "(p. ex. Nunca Más, Ni Una Más ou RTTY Power) puis redémarrez "
             "PoorSDR."
         ),
         "label_about_version": "Version {version}",
@@ -379,7 +362,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autoruf",
         "label_tab_hotkeys": "Tastenkürzel",
         "label_tab_about": "Über",
-        "label_tab_relays": "Relais",
         "label_cat_port": "CAT-Port",
         "label_cat_rig_profile": "Funkgeräteprofil",
         "label_cat_baud": "Baudrate",
@@ -425,11 +407,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Sprache",
         "label_ui_theme": "Thema",
         "label_ui_display_mode": "Standardmodus",
-        "label_relays_enabled": "WLAN-Relais",
-        "label_relays_url": "ESP-URL",
-        "label_relays_api_key": "API-Schlüssel",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Bandgruppen (JSON)",
         "label_window_title": "Einstellungen",
         "label_save": "Speichern",
         "label_cancel": "Abbrechen",
@@ -477,7 +454,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Autoruf 4",
         "label_no_plugins": (
             "Keine Plugins installiert. Installiere eines mit 'pip install …' "
-            "(z. B. Nunca Más, Ni Una Más oder die WLAN-Relais) und starte "
+            "(z. B. Nunca Más, Ni Una Más oder RTTY Power) und starte "
             "PoorSDR neu."
         ),
         "label_about_version": "Version {version}",
@@ -494,7 +471,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autochiamata",
         "label_tab_hotkeys": "Scorciatoie",
         "label_tab_about": "Informazioni",
-        "label_tab_relays": "Relè",
         "label_cat_port": "Porta CAT",
         "label_cat_rig_profile": "Profilo radio",
         "label_cat_baud": "Baud",
@@ -540,11 +516,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Lingua",
         "label_ui_theme": "Tema",
         "label_ui_display_mode": "Modalità predefinita",
-        "label_relays_enabled": "Relè WiFi",
-        "label_relays_url": "URL dell'ESP",
-        "label_relays_api_key": "Chiave API",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Gruppi di banda (JSON)",
         "label_window_title": "Impostazioni",
         "label_save": "Salva",
         "label_cancel": "Annulla",
@@ -592,7 +563,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Autochiamata 4",
         "label_no_plugins": (
             "Nessun plugin installato. Installane uno con «pip install …» "
-            "(es. Nunca Más, Ni Una Más o i relè WiFi) e riavvia PoorSDR."
+            "(es. Nunca Más, Ni Una Más o RTTY Power) e riavvia PoorSDR."
         ),
         "label_about_version": "Versione {version}",
         "label_about_author": "Autore: {author}",
@@ -608,7 +579,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autochamada",
         "label_tab_hotkeys": "Atalhos",
         "label_tab_about": "Sobre",
-        "label_tab_relays": "Relés",
         "label_cat_port": "Porta CAT",
         "label_cat_rig_profile": "Perfil de rádio",
         "label_cat_baud": "Baud",
@@ -654,11 +624,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Idioma",
         "label_ui_theme": "Tema",
         "label_ui_display_mode": "Modo por defeito",
-        "label_relays_enabled": "Relés WiFi",
-        "label_relays_url": "URL do ESP",
-        "label_relays_api_key": "Chave API",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Grupos de banda (JSON)",
         "label_window_title": "Definições",
         "label_save": "Guardar",
         "label_cancel": "Cancelar",
@@ -706,7 +671,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Autochamada 4",
         "label_no_plugins": (
             "Nenhum plugin instalado. Instala um com «pip install …» (ex. "
-            "Nunca Más, Ni Una Más ou os relés WiFi) e reinicia o PoorSDR."
+            "Nunca Más, Ni Una Más ou RTTY Power) e reinicia o PoorSDR."
         ),
         "label_about_version": "Versão {version}",
         "label_about_author": "Autor: {author}",
@@ -722,7 +687,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autotrucada",
         "label_tab_hotkeys": "Dreceres",
         "label_tab_about": "Quant a",
-        "label_tab_relays": "Relés",
         "label_cat_port": "Port CAT",
         "label_cat_rig_profile": "Perfil de ràdio",
         "label_cat_baud": "Bauds",
@@ -768,11 +732,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Idioma",
         "label_ui_theme": "Tema",
         "label_ui_display_mode": "Mode per defecte",
-        "label_relays_enabled": "Relés WiFi",
-        "label_relays_url": "URL de l'ESP",
-        "label_relays_api_key": "Clau API",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Grups de banda (JSON)",
         "label_window_title": "Ajustos",
         "label_save": "Desa",
         "label_cancel": "Cancel·la",
@@ -820,7 +779,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Autotrucada 4",
         "label_no_plugins": (
             "No hi ha plugins instal·lats. Instal·la'n un amb «pip install …» "
-            "(p. ex. Nunca Más, Ni Una Más o els relés WiFi) i reinicia PoorSDR."
+            "(p. ex. Nunca Más, Ni Una Más o RTTY Power) i reinicia PoorSDR."
         ),
         "label_about_version": "Versió {version}",
         "label_about_author": "Autor: {author}",
@@ -836,7 +795,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autochamada",
         "label_tab_hotkeys": "Atallos",
         "label_tab_about": "Acerca de",
-        "label_tab_relays": "Relés",
         "label_cat_port": "Porto CAT",
         "label_cat_rig_profile": "Perfil de radio",
         "label_cat_baud": "Baudios",
@@ -882,11 +840,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Idioma",
         "label_ui_theme": "Tema",
         "label_ui_display_mode": "Modo por defecto",
-        "label_relays_enabled": "Relés WiFi",
-        "label_relays_url": "URL do ESP",
-        "label_relays_api_key": "Clave API",
-        "label_relays_timeout_ms": "Timeout (ms)",
-        "label_relays_band_groups": "Grupos de banda (JSON)",
         "label_window_title": "Axustes",
         "label_save": "Gardar",
         "label_cancel": "Cancelar",
@@ -934,7 +887,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Autochamada 4",
         "label_no_plugins": (
             "Non hai plugins instalados. Instala un con «pip install …» "
-            "(p. ex. Nunca Más, Ni Una Más ou os relés WiFi) e reinicia PoorSDR."
+            "(p. ex. Nunca Más, Ni Una Más ou RTTY Power) e reinicia PoorSDR."
         ),
         "label_about_version": "Versión {version}",
         "label_about_author": "Autor: {author}",
@@ -950,7 +903,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Autodeia",
         "label_tab_hotkeys": "Lasterbideak",
         "label_tab_about": "Honi buruz",
-        "label_tab_relays": "Erreleak",
         "label_cat_port": "CAT ataka",
         "label_cat_rig_profile": "Irratiaren profila",
         "label_cat_baud": "Baudioak",
@@ -996,11 +948,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Hizkuntza",
         "label_ui_theme": "Gaia",
         "label_ui_display_mode": "Modu lehenetsia",
-        "label_relays_enabled": "WiFi erreleak",
-        "label_relays_url": "ESParen URLa",
-        "label_relays_api_key": "API gakoa",
-        "label_relays_timeout_ms": "Denbora-muga (ms)",
-        "label_relays_band_groups": "Banda taldeak (JSON)",
         "label_window_title": "Ezarpenak",
         "label_save": "Gorde",
         "label_cancel": "Utzi",
@@ -1048,7 +995,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Autodeia 4",
         "label_no_plugins": (
             "Ez dago pluginik instalatuta. Instalatu bat «pip install …» "
-            "bidez (adib. Nunca Más, Ni Una Más edo WiFi erreleak) eta "
+            "bidez (adib. Nunca Más, Ni Una Más edo RTTY Power) eta "
             "berrabiarazi PoorSDR."
         ),
         "label_about_version": "{version} bertsioa",
@@ -1065,7 +1012,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Automatyczne wywołanie",
         "label_tab_hotkeys": "Skróty",
         "label_tab_about": "O programie",
-        "label_tab_relays": "Przekaźniki",
         "label_cat_port": "Port CAT",
         "label_cat_rig_profile": "Profil radia",
         "label_cat_baud": "Prędkość (baud)",
@@ -1111,11 +1057,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Język",
         "label_ui_theme": "Motyw",
         "label_ui_display_mode": "Tryb domyślny",
-        "label_relays_enabled": "Przekaźniki WiFi",
-        "label_relays_url": "URL ESP",
-        "label_relays_api_key": "Klucz API",
-        "label_relays_timeout_ms": "Limit czasu (ms)",
-        "label_relays_band_groups": "Grupy pasm (JSON)",
         "label_window_title": "Ustawienia",
         "label_save": "Zapisz",
         "label_cancel": "Anuluj",
@@ -1163,7 +1104,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Automatyczne wywołanie 4",
         "label_no_plugins": (
             "Brak zainstalowanych wtyczek. Zainstaluj jedną poleceniem "
-            "„pip install …” (np. Nunca Más, Ni Una Más lub przekaźniki WiFi) "
+            "„pip install …” (np. Nunca Más, Ni Una Más lub RTTY Power) "
             "i uruchom ponownie PoorSDR."
         ),
         "label_about_version": "Wersja {version}",
@@ -1180,7 +1121,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Автовызов",
         "label_tab_hotkeys": "Горячие клавиши",
         "label_tab_about": "О программе",
-        "label_tab_relays": "Реле",
         "label_cat_port": "Порт CAT",
         "label_cat_rig_profile": "Профиль радио",
         "label_cat_baud": "Скорость (бод)",
@@ -1226,11 +1166,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Язык",
         "label_ui_theme": "Тема",
         "label_ui_display_mode": "Режим по умолчанию",
-        "label_relays_enabled": "WiFi-реле",
-        "label_relays_url": "URL платы ESP",
-        "label_relays_api_key": "Ключ API",
-        "label_relays_timeout_ms": "Тайм-аут (мс)",
-        "label_relays_band_groups": "Группы диапазонов (JSON)",
         "label_window_title": "Настройки",
         "label_save": "Сохранить",
         "label_cancel": "Отмена",
@@ -1278,7 +1213,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Автовызов 4",
         "label_no_plugins": (
             "Плагины не установлены. Установите один командой «pip install …» "
-            "(напр. Nunca Más, Ni Una Más или WiFi-реле) и перезапустите "
+            "(напр. Nunca Más, Ni Una Más или RTTY Power) и перезапустите "
             "PoorSDR."
         ),
         "label_about_version": "Версия {version}",
@@ -1295,7 +1230,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_tab_autocall": "Otomatik çağrı",
         "label_tab_hotkeys": "Kısayollar",
         "label_tab_about": "Hakkında",
-        "label_tab_relays": "Röleler",
         "label_cat_port": "CAT portu",
         "label_cat_rig_profile": "Telsiz profili",
         "label_cat_baud": "Baud hızı",
@@ -1341,11 +1275,6 @@ LABELS: dict[str, dict[str, str]] = {
         "label_ui_language": "Dil",
         "label_ui_theme": "Tema",
         "label_ui_display_mode": "Varsayılan mod",
-        "label_relays_enabled": "WiFi röleleri",
-        "label_relays_url": "ESP URL'si",
-        "label_relays_api_key": "API anahtarı",
-        "label_relays_timeout_ms": "Zaman aşımı (ms)",
-        "label_relays_band_groups": "Bant grupları (JSON)",
         "label_window_title": "Ayarlar",
         "label_save": "Kaydet",
         "label_cancel": "İptal",
@@ -1393,7 +1322,7 @@ LABELS: dict[str, dict[str, str]] = {
         "hk_auto_call_4": "Otomatik çağrı 4",
         "label_no_plugins": (
             "Yüklü eklenti yok. 'pip install …' ile bir tane yükleyin (örn. "
-            "Nunca Más, Ni Una Más veya WiFi röleleri) ve PoorSDR'yi yeniden "
+            "Nunca Más, Ni Una Más veya RTTY Power) ve PoorSDR'yi yeniden "
             "başlatın."
         ),
         "label_about_version": "Sürüm {version}",

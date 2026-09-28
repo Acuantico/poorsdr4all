@@ -40,6 +40,12 @@
 #                        descarga falla por cualquier motivo, la consola usa
 #                        DSEG7 Classic (SIL OFL 1.1, sí redistribuible), que
 #                        se instala sola de todos modos.
+#   INSTALL_PLUGIN_RTTY=1   Instalar también el plugin opcional RTTY Power
+#                        (plugins/rtty-power). Por defecto no se instala.
+#   INSTALL_PLUGIN_NMN1M=1  Instalar también el plugin opcional NMN1M (cuaderno
+#                        de estación, botón «Log»), descargado de su release en
+#                        GitHub (Acuantico/nmn1m). Por defecto no se instala.
+#   PIN_NMN1M=TAG        Release de NMN1M a instalar (por defecto: v1.0.0a1)
 #
 set -euo pipefail
 
@@ -57,6 +63,9 @@ SKIP_SPIDER="${SKIP_SPIDER:-0}"
 INSTALL_WEB_EXTRAS="${INSTALL_WEB_EXTRAS:-1}"
 RESET_OWRX_CONFIG="${RESET_OWRX_CONFIG:-0}"
 INSTALL_7LED_FONT="${INSTALL_7LED_FONT:-1}"
+INSTALL_PLUGIN_RTTY="${INSTALL_PLUGIN_RTTY:-0}"
+INSTALL_PLUGIN_NMN1M="${INSTALL_PLUGIN_NMN1M:-0}"
+PIN_NMN1M="${PIN_NMN1M:-v1.0.0a1}"
 
 PIN_CSDR="${PIN_CSDR:-c5d4224461267d67b1629821b179f95378477956}"
 PIN_PYCSDR="${PIN_PYCSDR:-db2050bd02ddd1d630cee8d27aaa4432767717ca}"
@@ -848,6 +857,29 @@ install_poorsdr_python_deps() {
 }
 
 # --------------------------------------------------------------------------- #
+# Plugins opcionales (solo si se piden): mismo Python y mismo pip --user que
+# PoorSDR, para que la consola los descubra al arrancar. Un fallo aquí no
+# aborta la instalación: PoorSDR funciona igual sin ellos.
+# --------------------------------------------------------------------------- #
+install_optional_plugins() {
+  local py; py="$(command -v python3 || command -v python)"
+  local pipargs=(--user --break-system-packages)
+  if [[ "${INSTALL_PLUGIN_RTTY}" == "1" ]]; then
+    log "Instalando el plugin RTTY Power..."
+    if ! "${py}" -m pip install "${pipargs[@]}" "${PROJECT_DIR}/plugins/rtty-power"; then
+      warn "No se pudo instalar el plugin RTTY Power; PoorSDR funciona igual sin él."
+    fi
+  fi
+  if [[ "${INSTALL_PLUGIN_NMN1M}" == "1" ]]; then
+    log "Instalando el plugin NMN1M (${PIN_NMN1M}) desde GitHub..."
+    local url="https://github.com/Acuantico/nmn1m/archive/refs/tags/${PIN_NMN1M}.tar.gz"
+    if ! "${py}" -m pip install "${pipargs[@]}" "${url}"; then
+      warn "No se pudo instalar el plugin NMN1M; PoorSDR funciona igual sin él."
+    fi
+  fi
+}
+
+# --------------------------------------------------------------------------- #
 # Fuente LED opcional (7LED, uso personal)
 # --------------------------------------------------------------------------- #
 install_optional_7led_font() {
@@ -920,6 +952,7 @@ main() {
   fi
 
   install_poorsdr_python_deps
+  install_optional_plugins
   install_optional_7led_font
   setup_serial_stability
 

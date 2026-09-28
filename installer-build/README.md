@@ -43,8 +43,8 @@ Produce `installer-build/dist/poorsdr4all-installer-<versión>-linux.run`
 1. Empaqueta los ficheros trackeados por git (`git ls-files`) con su
    contenido ACTUAL del árbol de trabajo — incluye cambios sin confirmar
    todavía, nunca ficheros sin trackear ni gitignorados — en
-   `archive/payload/`, y retira `plugins/` (los plugins van totalmente
-   aparte: no se incluye ninguno, no se instalan, no se mencionan).
+   `archive/payload/`, incluido `plugins/` (los plugins opcionales que el
+   asistente ofrece instalar).
 2. Comprueba sintaxis (`bash -n`, `python3 -m py_compile`).
 3. Llama a `tools/makeself.sh` (vendorizado desde el proyecto oficial
    [megastep/makeself](https://github.com/megastep/makeself), GPL-2.0+;
@@ -75,9 +75,11 @@ archive/
   pide la contraseña en una ventana en vez de fallar por falta de terminal.
 - Las casillas de la pantalla "Componentes" se traducen 1:1 a las variables
   de entorno que ya entiende `install.sh` (`SKIP_OWRX_BUILD`, `SKIP_SPIDER`,
-  `INSTALL_WEB_EXTRAS`). El plugin Filter Relays no lo instala `install.sh`
-  (es un paquete pip aparte, ver `plugins/README.md`) — lo hace el asistente
-  después, si se marcó.
+  `INSTALL_WEB_EXTRAS`, `INSTALL_PLUGIN_RTTY`, `INSTALL_PLUGIN_NMN1M`). Los
+  plugins opcionales van desmarcados por defecto: RTTY Power se instala desde
+  `plugins/rtty-power` del propio paquete y NMN1M se descarga de su release
+  en GitHub. Si un plugin falla al instalarse, se avisa y la instalación
+  sigue.
 - Al terminar bien, crea `~/.local/share/applications/poorsdr4all.desktop`
   apuntando a `~/.local/bin/poorsdr` (lo deja ahí `pip install --user .`) y
   copia el logo a `~/.local/share/poorsdr4all-installer/` como icono — no

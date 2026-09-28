@@ -134,7 +134,7 @@ function normalizeSpot(topic, raw) {
     else mode = 'SSB';
   }
   if (mode === 'DIGI' || mode === 'DIG') mode = 'FT8';
-  if (mode === 'UNK' || mode === 'UNKNOWN' || mode === 'PHONE' || mode === 'PH' || mode === 'FONIA' || mode === 'VOICE') mode = 'SSB';
+  if (mode === 'UNK' || mode === 'UNKNOWN' || mode === 'PHONE' || mode === 'PH' || mode === 'PHO' || mode === 'FONIA' || mode === 'VOICE' || mode === 'USB' || mode === 'LSB') mode = 'SSB';
 
   const comment = String(raw?.cmt ?? raw?.comment ?? '');
   const spotter = String(raw?.src ?? raw?.spotter ?? '').toUpperCase();

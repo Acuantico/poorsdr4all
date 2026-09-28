@@ -56,7 +56,12 @@ class PoorSDRApp:
         self._wf = WaterfallProcessor()
         self._wf_after: str | None = None
 
-        self.root = tk.Tk()
+        # className="PoorSDR4All": sin esto, Tk deja el WM_CLASS por defecto
+        # (derivado del intérprete, "Python"), y el escritorio muestra ese
+        # nombre en la barra de tareas en vez de "PoorSDR4All" -- el icono ya
+        # se fija aparte con iconphoto() en MainWindow, esto es solo el
+        # nombre que usa el gestor de ventanas/barra de tareas.
+        self.root = tk.Tk(className="PoorSDR4All")
 
         self._accent = accent_for_background(context.config.ui.background_image)
         self.win = MainWindow(

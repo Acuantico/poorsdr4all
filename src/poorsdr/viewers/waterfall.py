@@ -115,6 +115,21 @@ def kiosk_mode() -> bool:
     )
 
 
+#: Mismo logo que usa la consola (poorsdr.ui.main_window, vía iconphoto()) --
+#: este visor es un proceso GTK aparte, así que necesita fijar el suyo por
+#: separado; si no, el gestor de ventanas le pone el icono genérico.
+_LOGO_PATH = Path(__file__).resolve().parents[1] / "ui" / "assets" / "images" / "image.png"
+
+
+def _set_window_icon(window: object) -> None:
+    if Gtk is None or not _LOGO_PATH.is_file():
+        return
+    try:
+        window.set_icon_from_file(str(_LOGO_PATH))  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - un icono que falle no debe tumbar el visor
+        pass
+
+
 def waterfall_fps() -> int:
     """Frecuencia de refresco del render.
 
@@ -129,6 +144,25 @@ def waterfall_fps() -> int:
         except (TypeError, ValueError):
             pass
     return 30 if display_scale() >= 1.0 else 4
+
+
+_DEFAULT_PASSBAND_CUTS: dict[str, tuple[int, int]] = {
+    "AM": (-4000, 4000), "FM": (-4000, 4000), "NFM": (-4000, 4000),
+    "USB": (150, 2750), "LSB": (-2750, -150), "CW": (300, 700),
+}
+
+
+def passband_cuts(mode: str, audio_passband: tuple[float, float] | None) -> tuple[int, int]:
+    """Bordes del selector (y del demodulador de OWRX) respecto al dial.
+
+    Sin ancho impuesto, los de siempre según el modo. Con uno (el filtro del
+    uSDX elegido en el plugin RTTY, en Hz de AUDIO): en USB van tal cual y en
+    LSB invertidos, porque ahí el audio f corresponde a dial - f."""
+    m = str(mode or "").upper()
+    if audio_passband is not None and m in ("USB", "LSB"):
+        lo, hi = int(audio_passband[0]), int(audio_passband[1])
+        return (lo, hi) if m == "USB" else (-hi, -lo)
+    return _DEFAULT_PASSBAND_CUTS.get(m, (-1000, 1000))
 
 
 def log(message: str) -> None:
@@ -837,6 +871,8 @@ class NativeViewer:
         self.zoom_center = 0.0
         self.spots_enabled = True
         self.spot_modes = {"CW", "DIGI", "SSB"}
+        #: Ancho de audio impuesto por un plugin (p. ej. filtro del uSDX en RTTY), o None.
+        self.audio_passband: tuple[float, float] | None = None
         self.last_geometry_save = 0.0
         self.drag_start_x: float | None = None
         self.drag_start_center = 0.0
@@ -972,6 +1008,7 @@ class NativeViewer:
                     self.tuned_frequency = int(float(command["frequency"]))
                 if command.get("mode"):
                     self.mode = str(command["mode"]).upper()
+                log(f"tune cmd recibido frequency={self.tuned_frequency} mode={self.mode}")
                 self._send_tune_to_stream()
                 # PoorSDR holds reverse tuning during startup until the viewer
                 # confirms the requested value.  The browser bridge did this
@@ -983,7 +1020,9 @@ class NativeViewer:
             elif kind == "step":
                 self.step_hz = max(1, int(command.get("step_hz") or 1))
             elif kind == "profile":
+                log(f"profile cmd recibido profile={command.get('profile')} sdr={command.get('sdr')}")
                 if not self._select_profile(command):
+                    log(f"profile '{command.get('profile')}' no encontrado todavia; diferido")
                     self.deferred_profile = command
             elif kind == "spots":
                 self.spots_enabled = bool(command.get("enabled")) and not bool(command.get("off"))
@@ -994,8 +1033,21 @@ class NativeViewer:
                     self.spider.retention_sec = max(30, int(command.get("retention_sec") or 600))
             elif kind == "audio_capture":
                 self.stream.set_audio_capture(bool(command.get("enabled")))
+            elif kind == "passband":
+                lo, hi = command.get("audio_low"), command.get("audio_high")
+                self.audio_passband = (float(lo), float(hi)) if lo is not None and hi is not None else None
+                log(f"passband cmd recibido audio={self.audio_passband}")
+                self.last_tune_signature = None
+                self._send_tune_to_stream()
         if self.deferred_profile and self._select_profile(self.deferred_profile):
             self.deferred_profile = None
+            # Si el "tune" que PoorSDR mandó al conectar llegó antes de
+            # que este perfil (recién resuelto) tuviera un center_freq
+            # válido, _send_tune_to_stream() no pudo calcular el offset
+            # entonces y nadie lo reintentaba -- el visor se quedaba en la
+            # frecuencia propia del perfil en vez de la del uSDX. A validar
+            # con hardware real (reportado, no reproducido aquí).
+            self._send_tune_to_stream()
         self.root.after(30, self._process_commands)
 
     def _select_profile(self, command: dict) -> bool:
@@ -1028,6 +1080,7 @@ class NativeViewer:
         params = {"profile": str(match.get("id") or "")}
         if command.get("key"):
             params["key"] = str(command["key"])
+        log(f"profile emparejado con '{match.get('id')}' ({match.get('name')}); mandando selectprofile")
         self.stream.send({"type": "selectprofile", "params": params})
         self.zoom = 1.0
         # A new profile changes center_freq.  Force the desired app frequency
@@ -1046,17 +1099,16 @@ class NativeViewer:
             mod = "nfm"
         if mod in ("am", "nfm", "usb", "lsb", "cw"):
             params["mod"] = mod
-            cuts = {
-                "am": (-4000, 4000), "nfm": (-4000, 4000),
-                "usb": (150, 2750), "lsb": (-2750, -150),
-                "cw": (300, 700),
-            }[mod]
-            params["low_cut"], params["high_cut"] = cuts
+            params["low_cut"], params["high_cut"] = passband_cuts(mod, self.audio_passband)
         if params:
-            signature = (center, self.tuned_frequency, self.mode)
+            signature = (center, self.tuned_frequency, self.mode, self.audio_passband)
             if signature == self.last_tune_signature:
                 return
             self.last_tune_signature = signature
+            log(
+                f"_send_tune_to_stream: center={center} tuned={self.tuned_frequency} "
+                f"offset={params.get('offset_freq')} mod={params.get('mod')} params={params}"
+            )
             self.stream.send({"type": "dspcontrol", "action": "start"})
             self.stream.send({"type": "dspcontrol", "params": params})
 
@@ -1168,10 +1220,7 @@ class NativeViewer:
             return
         low, high = self._visible_range(config)
         span = max(1.0, high - low)
-        cuts = {
-            "AM": (-4000, 4000), "FM": (-4000, 4000),
-            "USB": (150, 2750), "LSB": (-2750, -150), "CW": (300, 700),
-        }.get(self.mode, (-1000, 1000))
+        cuts = passband_cuts(self.mode, self.audio_passband)
         x1 = int((self.tuned_frequency + cuts[0] - low) / span * self.width)
         x2 = int((self.tuned_frequency + cuts[1] - low) / span * self.width)
         x1, x2 = sorted((max(0, min(values.size - 1, x1)), max(0, min(values.size - 1, x2))))
@@ -1230,10 +1279,7 @@ class NativeViewer:
             return
         low, high = self._visible_range(config)
         span = max(1.0, high - low)
-        cuts = {
-            "AM": (-4000, 4000), "FM": (-4000, 4000),
-            "USB": (150, 2750), "LSB": (-2750, -150), "CW": (300, 700),
-        }.get(self.mode, (-1000, 1000))
+        cuts = passband_cuts(self.mode, self.audio_passband)
         x1 = int((self.tuned_frequency + cuts[0] - low) / span * self.width)
         x2 = int((self.tuned_frequency + cuts[1] - low) / span * self.width)
         cursor = int((self.tuned_frequency - low) / span * self.width)
@@ -1413,11 +1459,14 @@ class GtkNativeViewer:
         self.profile_config_mtime = -1.0
         self.spots_enabled = True
         self.spot_modes = {"CW", "DIGI", "SSB"}
+        #: Ancho de audio impuesto por un plugin (p. ej. filtro del uSDX en RTTY), o None.
+        self.audio_passband: tuple[float, float] | None = None
         self.deferred_profile: dict | None = None
         self.last_tune_signature = None
         self.last_geometry_save = 0.0
 
         self.window = Gtk.Window(title="Waterfall")
+        _set_window_icon(self.window)
         self.kiosk_mode = kiosk_mode()
         self.window_edit_enabled = WINDOW_EDIT_PATH.exists()
         launch_y = int(y)
@@ -1642,6 +1691,7 @@ class GtkNativeViewer:
                     self.tuned_frequency = int(float(command["frequency"]))
                 if command.get("mode"):
                     self.mode = str(command["mode"]).upper()
+                log(f"tune cmd recibido frequency={self.tuned_frequency} mode={self.mode}")
                 self._send_tune_to_stream()
                 self._emit({
                     "type": "tune", "frequency": self.tuned_frequency,
@@ -1650,7 +1700,9 @@ class GtkNativeViewer:
             elif kind == "step":
                 self.step_hz = max(1, int(command.get("step_hz") or 1))
             elif kind == "profile":
+                log(f"profile cmd recibido profile={command.get('profile')} sdr={command.get('sdr')}")
                 if not self._select_profile(command):
+                    log(f"profile '{command.get('profile')}' no encontrado todavia; diferido")
                     self.deferred_profile = command
             elif kind == "spots":
                 self.spots_enabled = bool(command.get("enabled")) and not bool(command.get("off"))
@@ -1662,8 +1714,21 @@ class GtkNativeViewer:
                     f"retention={self.spider.retention_sec}s buffered={len(self.spider.snapshot())}")
             elif kind == "audio_capture":
                 self.stream.set_audio_capture(bool(command.get("enabled")))
+            elif kind == "passband":
+                lo, hi = command.get("audio_low"), command.get("audio_high")
+                self.audio_passband = (float(lo), float(hi)) if lo is not None and hi is not None else None
+                log(f"passband cmd recibido audio={self.audio_passband}")
+                self.last_tune_signature = None
+                self._send_tune_to_stream()
         if self.deferred_profile and self._select_profile(self.deferred_profile):
             self.deferred_profile = None
+            # Si el "tune" que PoorSDR mandó al conectar llegó antes de
+            # que este perfil (recién resuelto) tuviera un center_freq
+            # válido, _send_tune_to_stream() no pudo calcular el offset
+            # entonces y nadie lo reintentaba -- el visor se quedaba en la
+            # frecuencia propia del perfil en vez de la del uSDX. A validar
+            # con hardware real (reportado, no reproducido aquí).
+            self._send_tune_to_stream()
         return True
 
     def _select_profile(self, command: dict) -> bool:
@@ -1681,6 +1746,7 @@ class GtkNativeViewer:
         params = {"profile": str(match.get("id") or "")}
         if command.get("key"):
             params["key"] = str(command["key"])
+        log(f"profile emparejado con '{match.get('id')}' ({match.get('name')}); mandando selectprofile")
         self.stream.send({"type": "selectprofile", "params": params})
         if self.current_band not in self.viewlock_prefs:
             self.zoom = 1.0
@@ -1697,17 +1763,17 @@ class GtkNativeViewer:
             mod = "nfm"
         if mod in ("am", "nfm", "usb", "lsb", "cw"):
             params["mod"] = mod
-            params["low_cut"], params["high_cut"] = {
-                "am": (-4000, 4000), "nfm": (-4000, 4000),
-                "usb": (150, 2750), "lsb": (-2750, -150),
-                "cw": (300, 700),
-            }[mod]
+            params["low_cut"], params["high_cut"] = passband_cuts(mod, self.audio_passband)
         if not params:
             return
-        signature = (center, self.tuned_frequency, self.mode)
+        signature = (center, self.tuned_frequency, self.mode, self.audio_passband)
         if signature == self.last_tune_signature:
             return
         self.last_tune_signature = signature
+        log(
+            f"_send_tune_to_stream: center={center} tuned={self.tuned_frequency} "
+            f"offset={params.get('offset_freq')} mod={params.get('mod')} params={params}"
+        )
         self.stream.send({"type": "dspcontrol", "action": "start"})
         self.stream.send({"type": "dspcontrol", "params": params})
 
@@ -1739,10 +1805,7 @@ class GtkNativeViewer:
             return
         low, high = self._visible_range()
         span = max(1.0, high - low)
-        cuts = {
-            "AM": (-4000, 4000), "FM": (-4000, 4000),
-            "USB": (150, 2750), "LSB": (-2750, -150), "CW": (300, 700),
-        }.get(self.mode, (-1000, 1000))
+        cuts = passband_cuts(self.mode, self.audio_passband)
         x1 = int((self.tuned_frequency + cuts[0] - low) / span * self.width)
         x2 = int((self.tuned_frequency + cuts[1] - low) / span * self.width)
         x1, x2 = sorted((max(0, min(values.size - 1, x1)), max(0, min(values.size - 1, x2))))
@@ -1965,7 +2028,7 @@ class GtkNativeViewer:
     def _draw_passband(self, ctx, low: float, span: float, top: int, bottom: int) -> None:
         if not self.tuned_frequency:
             return
-        cuts = {"AM": (-4000, 4000), "FM": (-4000, 4000), "USB": (150, 2750), "LSB": (-2750, -150), "CW": (300, 700)}.get(self.mode, (-1000, 1000))
+        cuts = passband_cuts(self.mode, self.audio_passband)
         x1 = (self.tuned_frequency + cuts[0] - low) / span * self.width
         x2 = (self.tuned_frequency + cuts[1] - low) / span * self.width
         if x2 >= 0 and x1 <= self.width:
@@ -2332,7 +2395,12 @@ def main() -> int:
         signal.signal(signal.SIGINT, lambda *_: GLib.idle_add(viewer.close))
         Gtk.main()
     elif tk is not None and ImageTk is not None:
-        root = tk.Tk()
+        root = tk.Tk(className="PoorSDR4All")
+        try:
+            if _LOGO_PATH.is_file():
+                root.iconphoto(True, tk.PhotoImage(file=str(_LOGO_PATH)))
+        except Exception:  # noqa: BLE001 - un icono que falle no debe tumbar el visor
+            pass
         NativeViewer(root, OpenWebRxStream(host, port, lang), SpiderStream(host), width, height, x, y, command_port, control_host, control_port)
         root.mainloop()
     else:

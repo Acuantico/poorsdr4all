@@ -106,15 +106,18 @@ fields)` (pestaña de Ajustes, con los mismos `Field` de
 `build_context()` los descubre y registra tras los servicios internos.
 `PoorSDRApp` añade a la consola los botones que hayan declarado y pasa sus
 pestañas a `SettingsWindow`. Sin ningún plugin instalado la app funciona igual
-(sin botón «Log», sin relés, sin la pestaña «Relés»).
+(sin botón «Log» ni «RTTY»).
 
 Activación por usuario: Ajustes → **Plugins** (check por plugin); se guarda en
 `config.json` bajo `PLUGINS` (`{id: bool}`, lo no listado = activo).
 
 Plugins de este repo (proyectos independientes en `plugins/`):
 
-- `plugins/filter-relays/` — `poorsdr-filter-relays`: registra
-  `FilterRelayService` (relés de filtros por banda vía WiFi).
+- `plugins/rtty-power/` — `poorsdr-rtty-power`: botón «RTTY» con el panel
+  de decodificación/TX RTTY. Usa del núcleo la cola de audio digi
+  (`pop_rx_raw_chunk_digi`), la inyección de TX (`inject_tx_audio`,
+  `set_tx_digi_inject_active`, `tx_inject_pending_samples`) y el ancho del
+  selector de la cascada (`OwrxControlService.set_audio_passband`).
 
 El botón «Log» lo aporta **Nunca Más, Ni Una Más (NMN1M)**, un cuaderno de
 estación / contest logger que es su propio proyecto independiente (repositorio,
