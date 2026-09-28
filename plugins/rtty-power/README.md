@@ -7,6 +7,8 @@ funciona igual, solo sin ese botón.
 
 **Experimental (alfa).**
 
+📖 **Wiki / documentación de usuario:** https://acuanticopower.com/poorsdr4all/rtty-power/
+
 ## Qué hace
 
 - **Decodificador propio** (45,45 baudios, 170 Hz): FSK no coherente con

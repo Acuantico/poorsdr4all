@@ -13,6 +13,8 @@ Desde el árbol fuente se instalan después del paquete principal:
 python -m pip install ./plugins/rtty-power
 ```
 
+- **RTTY Power** — RTTY con el uSDX. Wiki: https://acuanticopower.com/poorsdr4all/rtty-power/
+
 Para desarrollar un plugin se puede añadir `-e`. Los datos mutables no se
 guardan en el árbol fuente ni dentro de `site-packages`.
 
@@ -22,7 +24,8 @@ El cuaderno de estación / contest logger que aporta el botón «Log» **no** vi
 en este repositorio — es un proyecto independiente, con su propio repositorio,
 licencia y ciclo de publicación. Instálalo por separado (en el mismo entorno
 que PoorSDR4All) para que la consola lo descubra; sin él, la consola funciona
-igual, solo sin ese botón.
+igual, solo sin ese botón. Repositorio: https://github.com/Acuantico/nmn1m ·
+Wiki: https://acuanticopower.com/nmn1m/
 
 ## Activar / desactivar
 

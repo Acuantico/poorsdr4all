@@ -104,6 +104,7 @@ ninguno.
 
 - **[RTTY Power](plugins/rtty-power/README.md)** — botón «RTTY»: decodificador
   y TX RTTY con el audio del uSDX, con ayudas para concursos (CQ WW RTTY).
+  Wiki / manual de uso: https://acuanticopower.com/poorsdr4all/rtty-power/
 
 El botón «Log» lo aporta **[Nunca Más, Ni Una Más (NMN1M)](https://github.com/Acuantico/nmn1m)**,
 un cuaderno de estación / contest logger que es su propio proyecto
