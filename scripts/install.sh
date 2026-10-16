@@ -358,7 +358,8 @@ install_system_deps_debian() {
   )
   local optional=( wsjtx direwolf multimon-ng lame )
   sudo dpkg --configure -a || true
-  sudo apt-get update
+  sudo apt-get update \
+    || warn "apt-get update tuvo errores (repositorios ajenos); continúo con los índices disponibles."
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${optional[@]}" || \
     warn "Algunos paquetes opcionales no se instalaron."

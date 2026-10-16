@@ -49,7 +49,7 @@ if ! python3 -c 'import tkinter' >/dev/null 2>&1; then
       pkexec pacman -S --needed --noconfirm tk
       ;;
     debian)
-      pkexec sh -c 'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y python3-tk'
+      pkexec sh -c 'apt-get update || echo "AVISO: apt-get update tuvo errores (repositorios ajenos); continúo con los índices disponibles." >&2; DEBIAN_FRONTEND=noninteractive apt-get install -y python3-tk'
       ;;
     *)
       echo "ERROR: distribución no reconocida automáticamente para instalar tkinter." >&2
