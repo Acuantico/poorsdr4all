@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.0a3]
+
+### Corregido
+
+- El instalador ya no se detiene si `apt-get update` falla por un repositorio
+  ajeno (clave que falta, 404). Se avisa y se continúa con los índices
+  disponibles, tanto en `scripts/install.sh` como en el paso previo que
+  instala `python3-tk` en el instalador gráfico.
+
 ## [1.0.0a2]
 
 ### Añadido
