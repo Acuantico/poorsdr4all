@@ -28,24 +28,17 @@
 #   OWRX_BUILD_ROOT=DIR   Carpeta de compilacion (por defecto: runtime/owrx-native-build)
 #   PIN_CSDR / PIN_PYCSDR / PIN_OWRX_CONNECTOR / PIN_OPENWEBRX / PIN_OWRX_SPIDER
 #                        Sobrescribir las revisiones fijadas
-#   INSTALL_7LED_FONT=0  Por defecto se descarga la fuente "7LED" (dafont.com,
-#                        "gratis para uso personal") directo desde su fuente
-#                        oficial y se instala para el usuario que ejecuta el
-#                        instalador — NUNCA se distribuye una copia con este
-#                        proyecto (el .ttf no está en el repositorio; se
-#                        descarga en el momento, en cada máquina, igual que
-#                        OpenWebRX+/csdr se clonan de GitHub). Pon esta
-#                        variable a 0 para omitirlo (sin red, o si se prefiere
-#                        no descargar nada de terceros); en ese caso, o si la
-#                        descarga falla por cualquier motivo, la consola usa
-#                        DSEG7 Classic (SIL OFL 1.1, sí redistribuible), que
-#                        se instala sola de todos modos.
+#   INSTALL_7LED_FONT=1  La fuente LED «7LED» ya va INCLUIDA en el paquete
+#                        (src/poorsdr/ui/assets/fonts, con el readme de su autor)
+#                        y la consola la instala sola en el primer arranque. Esta
+#                        opción (por defecto 0) descarga ADEMÁS una copia desde
+#                        dafont.com; no hace falta.
 #   INSTALL_PLUGIN_RTTY=1   Instalar también el plugin opcional RTTY Power
 #                        (plugins/rtty-power). Por defecto no se instala.
 #   INSTALL_PLUGIN_NMN1M=1  Instalar también el plugin opcional NMN1M (cuaderno
 #                        de estación, botón «Log»), descargado de su release en
 #                        GitHub (Acuantico/nmn1m). Por defecto no se instala.
-#   PIN_NMN1M=TAG        Release de NMN1M a instalar (por defecto: v1.0.0a1)
+#   PIN_NMN1M=TAG        Release de NMN1M a instalar (por defecto: v1.0.0a2)
 #
 set -euo pipefail
 
@@ -62,10 +55,10 @@ SKIP_OWRX_BUILD="${SKIP_OWRX_BUILD:-0}"
 SKIP_SPIDER="${SKIP_SPIDER:-0}"
 INSTALL_WEB_EXTRAS="${INSTALL_WEB_EXTRAS:-1}"
 RESET_OWRX_CONFIG="${RESET_OWRX_CONFIG:-0}"
-INSTALL_7LED_FONT="${INSTALL_7LED_FONT:-1}"
+INSTALL_7LED_FONT="${INSTALL_7LED_FONT:-0}"
 INSTALL_PLUGIN_RTTY="${INSTALL_PLUGIN_RTTY:-0}"
 INSTALL_PLUGIN_NMN1M="${INSTALL_PLUGIN_NMN1M:-0}"
-PIN_NMN1M="${PIN_NMN1M:-v1.0.0a1}"
+PIN_NMN1M="${PIN_NMN1M:-v1.0.0a2}"
 
 PIN_CSDR="${PIN_CSDR:-c5d4224461267d67b1629821b179f95378477956}"
 PIN_PYCSDR="${PIN_PYCSDR:-db2050bd02ddd1d630cee8d27aaa4432767717ca}"
@@ -881,32 +874,27 @@ install_optional_plugins() {
 }
 
 # --------------------------------------------------------------------------- #
-# Fuente LED opcional (7LED, uso personal)
+# Fuente LED 7LED: ya va incluida en el paquete; esta descarga es opcional (INSTALL_7LED_FONT=1)
 # --------------------------------------------------------------------------- #
 install_optional_7led_font() {
   [[ "${INSTALL_7LED_FONT}" == "1" ]] || return 0
   log "Descargando la fuente 7LED desde dafont.com (INSTALL_7LED_FONT=1)..."
-  # "Gratis para uso personal": este proyecto no la distribuye ni guarda una
-  # copia propia (no hay ningun 7LED.ttf en el repositorio) — se descarga
-  # aqui, en el momento de instalar, directo desde la fuente oficial y para
-  # el usuario que ejecuta este script, igual que csdr/OpenWebRX+ se clonan
-  # de GitHub en vez de venir empaquetados. Si falla por cualquier motivo
-  # (sin red, la URL cambio, falta unzip...) no aborta el instalador: la
-  # consola sigue funcionando con DSEG7 Classic, que si se instala sola.
+  # Opcional y redundante: la consola ya instala la 7LED incluida en el paquete.
+  # Si falla (sin red, URL cambiada, falta unzip...) no aborta el instalador.
   if ! need_cmd curl || ! need_cmd unzip; then
-    warn "Falta curl o unzip; no se puede descargar 7LED. Se sigue con DSEG7 Classic."
+    warn "Falta curl o unzip; no se puede descargar 7LED. Se sigue con la 7LED incluida."
     return 0
   fi
   local tmp; tmp="$(mktemp -d)"
   if ! curl -fsSL -o "${tmp}/7led.zip" "https://dl.dafont.com/dl/?f=7led"; then
-    warn "No se pudo descargar 7LED (dafont.com no respondió). Se sigue con DSEG7 Classic."
+    warn "No se pudo descargar 7LED (dafont.com no respondió). Se sigue con la 7LED incluida."
     rm -rf "${tmp}"
     return 0
   fi
   local font_dir="${HOME}/.local/share/fonts/7led-personal"
   if ! unzip -oq "${tmp}/7led.zip" '*.ttf' -d "${tmp}" \
      || ! compgen -G "${tmp}/*.ttf" >/dev/null; then
-    warn "El zip de 7LED no traía ningún .ttf (¿cambió el paquete en dafont.com?). Se sigue con DSEG7 Classic."
+    warn "El zip de 7LED no traía ningún .ttf (¿cambió el paquete en dafont.com?). Se sigue con la 7LED incluida."
     rm -rf "${tmp}"
     return 0
   fi

@@ -1,0 +1,65 @@
+# Identificadores USB (VID:PID) de SDR habituales. Los usa el instalador (directivas de usbipd) y el lanzador.
+# Una línea por dispositivo: vid:pid  # nombre
+0bda:2832  # RTL-SDR · original RTL2832U vid/pid (hama nano, for example)
+0bda:2838  # RTL-SDR · RTL2832U OEM vid/pid, e.g. ezcap EzTV668 (E4000), Newsky TV28T (E4000/R820T) etc.
+0413:6680  # RTL-SDR · DigitalNow Quad DVB-T PCI-E card (4x FC0012?)
+0413:6f0f  # RTL-SDR · Leadtek WinFast DTV Dongle mini D (FC0012)
+0458:707f  # RTL-SDR · Genius TVGo DVB-T03 USB dongle (Ver. B)
+0ccd:00a9  # RTL-SDR · Terratec Cinergy T Stick Black (rev 1) (FC0012)
+0ccd:00b3  # RTL-SDR · Terratec NOXON rev 1 (FC0013)
+0ccd:00b4  # RTL-SDR · Terratec Deutschlandradio DAB Stick (FC0013)
+0ccd:00b5  # RTL-SDR · Terratec NOXON DAB Stick - Radio Energy (FC0013)
+0ccd:00b7  # RTL-SDR · Terratec Media Broadcast DAB Stick (FC0013)
+0ccd:00b8  # RTL-SDR · Terratec BR DAB Stick (FC0013)
+0ccd:00b9  # RTL-SDR · Terratec WDR DAB Stick (FC0013)
+0ccd:00c0  # RTL-SDR · Terratec MuellerVerlag DAB Stick (FC0013)
+0ccd:00c6  # RTL-SDR · Terratec Fraunhofer DAB Stick (FC0013)
+0ccd:00d3  # RTL-SDR · Terratec Cinergy T Stick RC (Rev.3) (E4000)
+0ccd:00d7  # RTL-SDR · Terratec T Stick PLUS (E4000)
+0ccd:00e0  # RTL-SDR · Terratec NOXON rev 2 (E4000)
+1554:5020  # RTL-SDR · PixelView PV-DT235U(RN) (FC0012)
+15f4:0131  # RTL-SDR · Astrometa DVB-T/DVB-T2 (R828D)
+15f4:0133  # RTL-SDR · HanfTek DAB+FM+DVB-T
+185b:0620  # RTL-SDR · Compro Videomate U620F (E4000)
+185b:0650  # RTL-SDR · Compro Videomate U650F (E4000)
+185b:0680  # RTL-SDR · Compro Videomate U680F (E4000)
+1b80:d393  # RTL-SDR · GIGABYTE GT-U7300 (FC0012)
+1b80:d394  # RTL-SDR · DIKOM USB-DVBT HD
+1b80:d395  # RTL-SDR · Peak 102569AGPK (FC0012)
+1b80:d397  # RTL-SDR · KWorld KW-UB450-T USB DVB-T Pico TV (TUA9001)
+1b80:d398  # RTL-SDR · Zaapa ZT-MINDVBZP (FC0012)
+1b80:d39d  # RTL-SDR · SVEON STV20 DVB-T USB & FM (FC0012)
+1b80:d3a4  # RTL-SDR · Twintech UT-40 (FC0013)
+1b80:d3a8  # RTL-SDR · ASUS U3100MINI_PLUS_V2 (FC0013)
+1b80:d3af  # RTL-SDR · SVEON STV27 DVB-T USB & FM (FC0013)
+1b80:d3b0  # RTL-SDR · SVEON STV21 DVB-T USB & FM
+1d19:1101  # RTL-SDR · Dexatek DK DVB-T Dongle (Logilink VG0002A) (FC2580)
+1d19:1102  # RTL-SDR · Dexatek DK DVB-T Dongle (MSI DigiVox mini II V3.0)
+1d19:1103  # RTL-SDR · Dexatek DK 5217 DVB-T Dongle (FC2580)
+1d19:1104  # RTL-SDR · MSI DigiVox Micro HD (FC2580)
+1f4d:a803  # RTL-SDR · Sweex DVB-T USB (FC0012)
+1f4d:b803  # RTL-SDR · GTek T803 (FC0012)
+1f4d:c803  # RTL-SDR · Lifeview LV5TDeluxe (FC0012)
+1f4d:d286  # RTL-SDR · MyGica TD312 (FC0012)
+1f4d:d803  # RTL-SDR · PROlectrix DV107669 (FC0012)
+1d50:60a1  # Airspy
+03eb:800c  # Airspy HF+
+1d50:6089  # HackRF One
+1d50:604b  # HackRF Jawbreaker
+1d50:cc15  # HackRF rad1o
+1df7:2500  # SDRplay RSP1
+1df7:3000  # SDRplay RSP1A
+1df7:3010  # SDRplay RSP1A
+1df7:3020  # SDRplay RSP2
+1df7:3030  # SDRplay RSPduo
+1df7:3050  # SDRplay RSPdx
+1df7:3060  # SDRplay RSPdx-R2
+2cf0:5246  # bladeRF
+2cf0:5250  # bladeRF 2.0
+0403:601f  # LimeSDR
+1d50:6108  # LimeSDR Mini
+04d8:fb31  # FUNcube Dongle Pro+
+04d8:fb56  # FUNcube Dongle Pro
+2500:0020  # USRP B200
+2500:0021  # USRP B200mini
+0456:b673  # ADALM-Pluto

@@ -51,3 +51,27 @@ class LayoutOverridesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BotonesDeFabricaNoSeSolapanTests(unittest.TestCase):
+    """Columna de la derecha: Log -> Mem -> primer plugin (RTTY...). Antes el segundo plugin caía sobre Mem."""
+
+    ALTO_BOTON = 32  # alto aproximado de un botón de la consola
+    ALTO_VENTANA = 760  # WINDOW_H de main_window
+
+    def _pos(self, nombre):
+        d = layout.LAYOUT_DEFAULTS[nombre]
+        return d["x"], d["y"]
+
+    def test_orden_vertical_y_separacion_suficiente(self):
+        ys = [self._pos(n)[1] for n in ("log_button", "mem_button", "plugin_button_1")]
+        self.assertEqual(ys, sorted(ys))
+        for a, b in zip(ys, ys[1:], strict=False):
+            self.assertGreaterEqual(b - a, self.ALTO_BOTON)
+
+    def test_caben_en_la_ventana(self):
+        self.assertLessEqual(self._pos("plugin_button_1")[1] + self.ALTO_BOTON, self.ALTO_VENTANA)
+
+    def test_misma_columna(self):
+        xs = [self._pos(n)[0] for n in ("log_button", "mem_button", "plugin_button_1")]
+        self.assertLessEqual(max(xs) - min(xs), 3)

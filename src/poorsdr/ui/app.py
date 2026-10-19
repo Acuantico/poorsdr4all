@@ -350,8 +350,11 @@ class PoorSDRApp:
             console_bottom = root.winfo_y() + root.winfo_height()
             margin_bottom = 40  # barra de tareas/panel del escritorio
             wf_w = max(320, root.winfo_screenwidth())
-            wf_h = max(180, screen_h - console_bottom - margin_bottom)
-            return f"{wf_w}x{wf_h}+0+{console_bottom}"
+            wf_h = max(120, screen_h - console_bottom - margin_bottom)
+            # Si debajo de la consola no cabe (pantallas bajas), se sube para que la ventana quede
+            # entera en pantalla —solapando el borde inferior de la consola— en vez de salirse de ella.
+            wf_y = max(0, min(console_bottom, screen_h - margin_bottom - wf_h))
+            return f"{wf_w}x{wf_h}+0+{wf_y}"
         except tk.TclError:
             return ""
 

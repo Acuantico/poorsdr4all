@@ -49,8 +49,8 @@ def main() -> int:
         if path.suffix == ".whl" or path.name.endswith(".tar.gz")
     )
     expected_names = {
-        "poorsdr4all-1.0.0a3-py3-none-any.whl",
-        "poorsdr4all-1.0.0a3.tar.gz",
+        "poorsdr4all-1.0.0a4-py3-none-any.whl",
+        "poorsdr4all-1.0.0a4.tar.gz",
         "poorsdr_rtty_power-0.1.0a1-py3-none-any.whl",
         "poorsdr_rtty_power-0.1.0a1.tar.gz",
     }

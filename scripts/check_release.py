@@ -17,7 +17,7 @@ REQUIRED = {
     "LICENSE", "CLA.md", "COMMERCIAL-LICENSE.md", "CONTRIBUTING.md",
     "SECURITY.md", "THIRD_PARTY_NOTICES.md", "scripts/check_owrx_config.py",
     "LICENSES/GPL-3.0-or-later.txt", "LICENSES/AGPL-3.0-or-later.txt",
-    "LICENSES/BSD-3-Clause-SpeexDSP.txt", "LICENSES/OFL-1.1-DSEG.txt",
+    "LICENSES/BSD-3-Clause-SpeexDSP.txt", "src/poorsdr/ui/assets/fonts/7LED.ttf", "src/poorsdr/ui/assets/fonts/7LED-readme.txt",
     "LICENSES/GPL-2.0-or-later-makeself.txt",
 }
 

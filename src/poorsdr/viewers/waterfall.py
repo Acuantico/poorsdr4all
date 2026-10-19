@@ -173,10 +173,19 @@ def log(message: str) -> None:
         pass
 
 
+#: Alto mínimo de la ventana (a escala 1). El dibujo reserva ~71 px fijos (escala + espectro), así que
+#: con 110 aún quedan filas de cascada visibles; antes era 220, demasiado para pantallas bajas.
+MIN_WINDOW_HEIGHT = 110
+
+
+def min_window_size(scale: float | None = None) -> tuple[int, int]:
+    """Tamaño mínimo (ancho, alto) de la ventana, igual para el visor Tk, el GTK y la geometría guardada."""
+    s = display_scale() if scale is None else scale
+    return max(220, int(round(520 * s))), max(90, int(round(MIN_WINDOW_HEIGHT * s)))
+
+
 def parse_geometry(width: int, height: int) -> tuple[int, int, int, int]:
-    scale = display_scale()
-    min_width = max(220, int(round(520 * scale)))
-    min_height = max(90, int(round(220 * scale)))
+    min_width, min_height = min_window_size(display_scale())
     candidates = [str(os.environ.get("OWRX_FORCE_GEOMETRY", "") or "").strip()]
     try:
         loaded = json.loads(STATE_PATH.read_text(encoding="utf-8-sig"))
@@ -891,7 +900,7 @@ class NativeViewer:
                 y = max(26, min(int(y) + 26, screen_height - int(height)))
         root.configure(bg="#08090b")
         root.geometry(f"{width}x{height}+{x}+{y}")
-        root.minsize(520, 220)
+        root.minsize(*min_window_size())
         self.canvas = tk.Canvas(root, bg="#08090b", highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True)
         self.image_item = self.canvas.create_image(0, 0, anchor="nw")
@@ -1480,10 +1489,7 @@ class GtkNativeViewer:
             self.window.set_decorated(self.window_edit_enabled)
         self.window.set_default_size(width, height)
         self.window.move(x, launch_y)
-        self.window.set_size_request(
-            max(220, int(round(520 * self.display_scale))),
-            max(90, int(round(220 * self.display_scale))),
-        )
+        self.window.set_size_request(*min_window_size(self.display_scale))
         self.area = Gtk.DrawingArea()
         self.area.set_can_focus(True)
         self.area.add_events(

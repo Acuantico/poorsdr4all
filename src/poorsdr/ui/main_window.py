@@ -516,8 +516,8 @@ class MainWindow:
         Tooltip(self.mem_button, self._help("help_mem_button"))
 
         # Botones que aporten los plugins (p. ej. "Log" del Libro de Guardia).
-        # El primero ocupa la ranura "log_button" del layout original; los
-        # siguientes se apilan a su izquierda. Sin plugins, no aparece nada.
+        # "Log" ocupa la ranura "log_button"; los demás se apilan bajo "Mem".
+        # Sin plugins, no aparece nada.
         self._plugin_buttons: dict[str, tk.Button] = {}
 
         self.owrx_button = tk.Button(self.root, text="OWRX", width=8, command=self.cb.open_owrx)
@@ -1286,11 +1286,14 @@ class MainWindow:
         # acento a este botón para que su marco iguale al resto.
         with contextlib.suppress(tk.TclError):
             btn.configure(highlightbackground=self._accent, highlightcolor=self._accent)
-        n = len(self._plugin_buttons)
-        if n == 0:
-            self._place("log_button", btn, 469, 666)
+        # El Libro de Guardia ("Log") ocupa siempre su ranura; los demás plugins
+        # (RTTY...) van en columna debajo de "Mem", con la misma separación, sin
+        # solaparse. El orden en que se registren los plugins no cambia el resultado.
+        if button_id in ("libro", "log"):
+            self._place("log_button", btn, 467, 635)
         else:
-            self._place(f"plugin_button_{n}", btn, 469, 666 + 34 * n)
+            k = sum(1 for b in self._plugin_buttons if b not in ("libro", "log")) + 1
+            self._place(f"plugin_button_{k}", btn, 468, min(715 + 40 * (k - 1), WINDOW_H - 36))
         self._plugin_buttons[button_id] = btn
 
     def clear_plugin_buttons(self) -> None:

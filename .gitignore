@@ -70,3 +70,6 @@ pid_*.txt
 *.pem
 .DS_Store
 Thumbs.db
+
+# Instalador de Windows: caché de descargas
+installer-windows/cache/

@@ -1,12 +1,17 @@
 """Selección de fuentes instaladas para la interfaz.
 
-No se redistribuyen tipografías de procedencia incierta. La única fuente LED
-que este proyecto sí redistribuye es DSEG7 Classic (SIL OFL 1.1, ver
-``assets/fonts/`` y ``THIRD_PARTY_NOTICES.md``): su licencia permite
-explícitamente embeberla en otro software. Otras fuentes "LED" populares
-(p. ej. "7LED" de dafont.com) son "gratis solo para uso personal" y por eso
-no se instalan — si el usuario ya las tiene puestas por su cuenta, se siguen
-detectando y usando igual, pero nunca se copian desde aquí.
+La fuente LED del frecuencímetro es «7LED» y va incluida en el paquete
+(``assets/fonts/7LED.ttf``) sin modificar y acompañada de su ``readme.txt``
+original. Según ese readme del autor la fuente es *freeware*: puede distribuirse
+a quien se quiera siempre que el readme la acompañe, y se pide no modificarla ni
+cambiarle el nombre (ver ``THIRD_PARTY_NOTICES.md``). Por eso hay que conservar
+ambos ficheros juntos.
+
+``install_led_font()`` la deja visible para la consola al arrancar: en Linux la
+copia al directorio de fuentes del usuario; en Windows la registra solo para este
+proceso (``AddFontResourceExW`` con ``FR_PRIVATE``: no toca el sistema ni pide
+permisos de administrador). Si no estuviera, ``led_font_family()`` usa otra
+fuente de estilo LED/LCD ya instalada o la fuente normal de la interfaz.
 """
 
 from __future__ import annotations
@@ -19,64 +24,60 @@ import tkinter.font as tkfont
 from pathlib import Path
 
 _FONTS_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
-_DSEG_FAMILY = "DSEG7 Classic"
-_DSEG_FILES = (
-    "DSEG7Classic-Regular.ttf",
-    "DSEG7Classic-Bold.ttf",
-    "DSEG7Classic-Italic.ttf",
-    "DSEG7Classic-BoldItalic.ttf",
-)
+_LED_FAMILY = "7LED"
+#: La fuente y su readme (la licencia del autor exige que viajen juntos).
+_LED_FILES = ("7LED.ttf", "7LED-readme.txt")
+_FR_PRIVATE = 0x10
 
 _LED_CANDIDATES = (
-    "7LED", "DS-Digital", "Digital-7", "Seven Segment", "LCD", "Segment7",
-    "DSEG7 Modern", _DSEG_FAMILY, "Segoe UI",
+    _LED_FAMILY, "DS-Digital", "Digital-7", "Seven Segment", "LCD", "Segment7",
+    "Segoe UI",
 )
 _UI_CANDIDATES = ("Orbitron", "Rajdhani", "Exo 2", "Bahnschrift", "Segoe UI", "DejaVu Sans")
 
 
-def install_led_font() -> str:
-    """Copia DSEG7 Classic al directorio de fuentes del usuario si hace
-    falta y refresca la caché de fontconfig (Linux). Devuelve el nombre de
-    familia si quedó instalada (o ya lo estaba), o ``""`` si no se pudo —
-    en ese caso ``led_font_family()`` cae a otro candidato ya instalado o a
-    la fuente por defecto de Tk, como si esta función no existiera.
+def _register_windows(ttf: Path) -> bool:
+    """Registra la fuente solo para este proceso (visible para Tk y GDI)."""
+    try:
+        import ctypes
 
-    Solo Linux por ahora: es la plataforma donde se confirmó el problema
-    (consola sin fuente LED en una instalación nueva) y donde copiar el
-    archivo + `fc-cache` basta. En Windows/macOS no se intenta nada — un
-    intento a medias (sin registrar la fuente en el sistema) sería peor que
-    no intentarlo, así que se deja para cuando haya forma de probarlo de
-    verdad en esas plataformas.
-    """
-    if platform.system() != "Linux":
-        return ""
+        return bool(ctypes.windll.gdi32.AddFontResourceExW(str(ttf), _FR_PRIVATE, 0))  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _install_linux(src_dir: Path) -> bool:
     target_dir = Path.home() / ".local" / "share" / "fonts" / "poorsdr4all"
     try:
-        installed_any = False
-        for name in _DSEG_FILES:
-            src = _FONTS_DIR / name
+        for name in _LED_FILES:
+            src = src_dir / name
             if not src.is_file():
-                continue
+                return False
             dst = target_dir / name
             if dst.is_file() and dst.stat().st_size == src.stat().st_size:
-                installed_any = True
                 continue
             target_dir.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, dst)
-            installed_any = True
-        if not installed_any:
-            return ""
     except OSError:
-        return ""
+        return False
     if shutil.which("fc-cache"):
         with contextlib.suppress(OSError, subprocess.TimeoutExpired):
-            subprocess.run(
-                ["fc-cache", "-f", str(target_dir)],
-                capture_output=True,
-                check=False,
-                timeout=10,
-            )
-    return _DSEG_FAMILY
+            subprocess.run(["fc-cache", "-f", str(target_dir)], capture_output=True, check=False, timeout=10)
+    return True
+
+
+def install_led_font() -> str:
+    """Deja visible la fuente 7LED del paquete. Devuelve su familia, o ``""`` si no se pudo
+    (en ese caso ``led_font_family()`` cae a otro candidato ya instalado)."""
+    ttf = _FONTS_DIR / _LED_FILES[0]
+    if not ttf.is_file():
+        return ""
+    system = platform.system()
+    if system == "Windows":
+        return _LED_FAMILY if _register_windows(ttf) else ""
+    if system == "Linux":
+        return _LED_FAMILY if _install_linux(_FONTS_DIR) else ""
+    return ""
 
 
 def _pick(root, candidates: tuple[str, ...], fallback: str = "Segoe UI") -> str:  # type: ignore[no-untyped-def]
@@ -91,12 +92,8 @@ def _pick(root, candidates: tuple[str, ...], fallback: str = "Segoe UI") -> str:
 
 
 def led_font_family(root, detected: str = "") -> str:  # type: ignore[no-untyped-def]
-    # "detected" (lo que devolvió install_led_font(), casi siempre
-    # _DSEG_FAMILY) NO se antepone: si el usuario ya tiene puesta su propia
-    # fuente LED (p. ej. "7LED", uso personal legítimo desde antes de que
-    # existiera este mecanismo), esa debe seguir ganando. DSEG7 Classic
-    # solo entra en juego si nada de _LED_CANDIDATES está ya instalado —
-    # exactamente el orden en el que ya aparece en la propia tupla.
+    # «7LED» va siempre primera (es la fuente del frecuencímetro); ``detected`` no se antepone
+    # a nada: si el usuario ya la tenía instalada por su cuenta, es la misma.
     del detected
     return _pick(root, _LED_CANDIDATES)
 

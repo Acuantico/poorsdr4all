@@ -62,28 +62,18 @@ PoorSDR4All no incluye una DLL ni una biblioteca SpeexDSP precompilada. Si una
 distribución futura la incluye, deberá registrar versión, origen y hash, además
 de conservar el aviso BSD.
 
-## Fuente LED (DSEG7 Classic)
+## Fuente LED (7LED)
 
-- Origen: https://github.com/keshikan/DSEG
-- Versión: 0.46 (`fonts-DSEG_v046.zip`)
-- Licencia: `OFL-1.1` (SIL Open Font License 1.1) — permite explícitamente
-  embeber y redistribuir la fuente junto con otro software (cláusula 2),
-  siempre que se conserve el aviso de copyright y la licencia.
-- Copyright: (c) 2017, keshikan (http://www.keshikan.net); "DSEG" es
-  Reserved Font Name.
-- Ubicación: `src/poorsdr/ui/assets/fonts/` (solo los 4 estilos básicos:
-  Regular, Bold, Italic, BoldItalic — sin las variantes Light/Mini/Modern
-  ni los `.woff`/`.woff2`, pensados para web, que este proyecto no usa).
-- Uso: `poorsdr.ui.fonts.install_led_font()` la copia al directorio de
-  fuentes del usuario (`~/.local/share/fonts/` en Linux) en el primer
-  arranque y refresca la caché de fontconfig; la consola la usa para el
-  frecuencímetro si no hay ya instalada otra fuente de estilo LED.
-
-Antes se intentó con "7LED" (dafont.com), pero es "gratis solo para uso
-personal": esa licencia no permite redistribuirla embebida en software, así
-que se retiró sin sustituto durante un tiempo — la consola caía a una fuente
-normal. DSEG7 Classic cubre el mismo propósito (dígitos de estilo LED/LCD)
-con una licencia que sí lo permite.
+- Origen: https://www.dafont.com/7-led.font (fichero `7led.zip`).
+- Autor: Philippe Blondel (philing.net), según el `readme.txt` que acompaña a la fuente.
+- Licencia: *freeware* según ese `readme.txt` del autor — puede distribuirse a quien se quiera siempre que el
+  `readme.txt` la acompañe, y se pide no modificarla ni cambiarle el nombre. Sin garantía.
+- Ubicación: `src/poorsdr/ui/assets/fonts/` — `7LED.ttf` sin modificar, con los textos originales del autor
+  `7LED-readme.txt` y `7LED-lisezmoi.txt` (deben viajar siempre con la fuente; `scripts/check_release.py` lo comprueba).
+- Uso: `poorsdr.ui.fonts.install_led_font()` la deja visible para la consola (Linux: copia a
+  `~/.local/share/fonts/`; Windows: registro privado del proceso) y la consola la usa para el frecuencímetro.
+- Nota: dafont.com muestra esta fuente como «gratis para uso personal», mientras que el texto del propio autor que la
+  acompaña es el que se ha tomado como referencia. Si el autor indicara otra cosa, habría que retirarla.
 
 ## Nunca Más, Ni Una Más (NMN1M)
 

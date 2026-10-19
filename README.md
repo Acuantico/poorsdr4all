@@ -42,13 +42,26 @@ variables de entorno y verificación en
 [`installer-build/README.md`](installer-build/README.md) y
 [`docs/INSTALL.md`](docs/INSTALL.md).
 
+## Instalación en Windows — instalador gráfico
+
+**[⬇ Descargar el instalador para Windows (Releases)](https://github.com/Acuantico/poorsdr4all/releases/latest)**
+
+Un solo `.exe` (Windows 10 2004 o posterior / Windows 11, 64 bits). Instala la
+aplicación, prepara **WSL2** y deja **OpenWebRX+** funcionando dentro de un
+Linux propio y privado (Ubuntu 24.04) que se crea solo. OpenWebRX+ y los spots
+arrancan al abrir PoorSDR4All y se detienen al cerrarlo, como en Linux.
+Necesita conexión a Internet: la primera vez descarga Ubuntu (~370 MB) y
+compila OpenWebRX+ (20-40 minutos). Opcionalmente instala RTTY Power, el Libro
+de guardia (NMN1M) y el soporte para SDR por USB. Detalles en
+[`installer-windows/README.md`](installer-windows/README.md).
+
 ## Estado por plataforma
 
 | Plataforma | Estado de la Alpha | Alcance |
 |---|---|---|
 | Arch Linux x86-64 | Validación funcional del mantenedor | Plataforma principal |
 | Debian/Ubuntu x86-64 y arm64 | Compilación y pruebas automatizadas previstas | Pendiente de validación con hardware real |
-| Windows 10/11 x86-64 | Paquete Python, pruebas y acelerador C previstos en CI | Experimental; OpenWebRX+ debe ser remoto o ejecutarse mediante WSL2 |
+| Windows 10/11 x86-64 | Instalador gráfico `.exe` (WSL2 + OpenWebRX+); probado en una máquina virtual con Windows 11 | Alpha; sin probar aún con un SDR real ni en equipos de usuarios |
 
 Los resultados de CI comprueban que el código se instala, se prueba y se
 compila; no equivalen a una prueba física de radio, CAT, SDR o audio. Los fallos

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "poorsdr4all"
-version = "1.0.0a3"
+version = "1.0.0a4"
 description = "PoorSDR4All — control de radio, CAT/rigctld, OWRX+ y panel de operación"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
     "numpy>=1.24",
@@ -94,6 +95,7 @@ include = [
     "/scripts",
     "/src",
     "/tests",
+    "/installer-windows",
 ]
 
 [tool.hatch.build]

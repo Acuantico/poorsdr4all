@@ -2,6 +2,38 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.0a4]
+
+### Añadido
+
+- **Instalador gráfico para Windows 10/11** (`installer-windows/`): un único
+  `poorsdr4all-installer-<versión>-windows-x64.exe` que instala la aplicación,
+  prepara WSL2 y deja OpenWebRX+ funcionando dentro de una distribución propia
+  (Ubuntu 24.04) que se instala sola. OpenWebRX+ y el servicio de spots
+  (`spiderd`) arrancan al abrir PoorSDR4All y se detienen al cerrarlo, igual
+  que en Linux. Componentes opcionales marcados por defecto: RTTY Power y
+  Libro de guardia (NMN1M, con su propio acceso directo e icono).
+- **SDR por USB en Windows**: el instalador autoriza de una vez los SDR habituales
+  (RTL-SDR, Airspy, HackRF, SDRplay, bladeRF, LimeSDR…) con `usbipd-win`; la
+  aplicación los conecta a WSL al abrirse, los suelta al cerrarse, reconecta si
+  se desenchufan y avisa con claridad si no hay SDR o no está autorizado.
+
+### Cambiado
+
+- La fuente LED del frecuencímetro es siempre **7LED** y va incluida en el
+  paquete (sin modificar y con el readme de su autor). Se elimina DSEG7 Classic.
+  En Linux, `install.sh` ya no descarga 7LED por defecto (`INSTALL_7LED_FONT=0`).
+- El README documenta la instalación en Windows.
+- Los instaladores (Linux y Windows) instalan **NMN1M 1.0.0a2**: mapa más limpio y rápido, selector de
+  tamaño del texto, logo reescalable e importación de referencias DME.
+
+### Corregido
+
+- Los botones que añaden los plugins (Log, Mem, RTTY…) se colocan en columna,
+  sin solaparse, en las posiciones de fábrica.
+- La ventana de la cascada puede hacerse más baja (mínimo 110 px, antes 220) y
+  su posición inicial queda dentro de la pantalla en monitores bajos.
+
 ## [1.0.0a3]
 
 ### Corregido
