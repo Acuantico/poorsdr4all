@@ -19,6 +19,7 @@ from poorsdr.core.autocall import (
     slots_from_config,
 )
 from poorsdr.services.base import BaseService, ServiceState
+from poorsdr.services.tx_playback import precise_wait
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,7 +29,18 @@ if TYPE_CHECKING:
     from poorsdr.services.radio import RadioService
 
 
-def _noop_play(path: str, stop_checker: Callable[[], bool]) -> bool:  # pragma: no cover
+#: Pausa exacta (s) entre activar el PTT y emitir la primera muestra: la radio
+#: necesita pasar a TX antes de que llegue audio, o se come el principio.
+PTT_LEAD_S = 0.20
+#: Cola (s) con el PTT activo tras la última muestra, para que no se corte el final.
+PTT_TAIL_S = 0.40
+
+
+def _noop_play(  # pragma: no cover
+    path: str,
+    stop_checker: Callable[[], bool],
+    on_ready: Callable[[], bool] | None = None,
+) -> bool:
     return False
 
 
@@ -41,14 +53,19 @@ class AutocallService(BaseService):
         cfg: AppConfig,
         radio: RadioService,
         *,
-        play_audio: Callable[[str, Callable[[], bool]], bool] | None = None,
+        play_audio: Callable[..., bool] | None = None,
         sleep: Callable[[float], None] | None = None,
+        ptt_lead_s: float = PTT_LEAD_S,
+        ptt_tail_s: float = PTT_TAIL_S,
     ) -> None:
         super().__init__(bus)
         self._cfg = cfg
         self._radio = radio
         self._play = play_audio or _noop_play
         self._sleep = sleep or time.sleep
+        self._ptt_lead_s = max(0.0, float(ptt_lead_s))
+        self._ptt_tail_s = max(0.0, float(ptt_tail_s))
+        self._ptt_on = False
         self._profiles: list[AutocallProfile] = []
         self._buttons: list[int] = list(range(BUTTON_COUNT))
         self._stop = threading.Event()
@@ -136,15 +153,37 @@ class AutocallService(BaseService):
             for i in range(profile.repeats):
                 if self._stop.is_set():
                     break
-                self._radio.set_ptt(True, source="autocall")
+                self._ptt_on = False
                 try:
-                    self._play(profile.audio, self._stop.is_set)
+                    self._play(profile.audio, self._stop.is_set, on_ready=self._begin_tx)
                 finally:
-                    self._radio.set_ptt(False, source="autocall")
+                    self._end_tx()
                 if i < profile.repeats - 1 and not self._stop.is_set():
                     self._wait(profile.interval)
         finally:
             self.bus.publish("autocall.finished", stopped=self._stop.is_set(), button=button)
+
+    def _begin_tx(self) -> bool:
+        """Activa el PTT y espera la pausa exacta antes de que salga el audio.
+
+        Lo invoca el reproductor cuando ya tiene el audio preparado, así que la
+        pausa entre PTT y primera muestra es exactamente ``ptt_lead_s``, no
+        "lo que tarde en arrancar ffmpeg". ``False`` si se cancela durante la
+        pausa (entonces no sale nada).
+        """
+        self._radio.set_ptt(True, source="autocall")
+        self._ptt_on = True
+        return precise_wait(self._ptt_lead_s, self._stop.is_set)
+
+    def _end_tx(self) -> None:
+        """Mantiene el PTT la cola exacta tras el audio y lo suelta. Si no llegó a
+        activarse (archivo inválido, cancelación previa) no toca el PTT."""
+        if not self._ptt_on:
+            return
+        self._ptt_on = False
+        if not self._stop.is_set():
+            precise_wait(self._ptt_tail_s, self._stop.is_set)
+        self._radio.set_ptt(False, source="autocall")
 
     def _wait(self, seconds: float) -> None:
         if seconds <= 0:

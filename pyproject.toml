@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "poorsdr4all"
-version = "1.0.0a4"
+version = "1.0.0a5"
 description = "PoorSDR4All — control de radio, CAT/rigctld, OWRX+ y panel de operación"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,7 +28,6 @@ dependencies = [
     "pyaudio>=0.2.13; platform_system != 'Windows'",
     "pyaudiowpatch>=0.2.12.7; platform_system == 'Windows'",
     "pyserial>=3.5",
-    "pynput>=1.8",
     "Pillow>=10.0",
     "psutil>=5.9",
     "matplotlib>=3.7",

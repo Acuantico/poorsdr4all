@@ -285,3 +285,29 @@ def test_sincronizar_spiderd_tolera_el_aviso(tmp_path, monkeypatch):
 
     monkeypatch.setattr(wsl, "en_distro", falso)
     assert wsl.sincronizar_spiderd() is True and "/mnt/c/x/spiderd.conf" in cmds[1][2] and "anidada" not in cmds[1][2]
+
+
+# --- PyAV (FFmpeg) no va en el ejecutable: el instalador lo deja en «extras» y el lanzador lo hace importable ---
+def test_extras_se_anade_al_camino_de_importacion_solo_si_existe(monkeypatch, tmp_path):
+    import launch_poorsdr as lp
+
+    exe = tmp_path / "PoorSDR4All.exe"
+    monkeypatch.setattr(lp.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(lp.sys, "executable", str(exe))
+    monkeypatch.setattr(lp.sys, "path", list(lp.sys.path))
+    lp._preparar_componentes_externos()  # sin carpeta extras: no toca nada
+    assert str(tmp_path / "extras") not in lp.sys.path
+    (tmp_path / "extras").mkdir()
+    lp._preparar_componentes_externos()
+    assert lp.sys.path[0] == str(tmp_path / "extras")
+
+
+def test_sin_empaquetar_no_se_toca_el_camino(monkeypatch, tmp_path):
+    import launch_poorsdr as lp
+
+    (tmp_path / "extras").mkdir()
+    monkeypatch.setattr(lp.sys, "executable", str(tmp_path / "python.exe"))
+    monkeypatch.delattr(lp.sys, "frozen", raising=False)
+    antes = list(lp.sys.path)
+    lp._preparar_componentes_externos()
+    assert lp.sys.path == antes

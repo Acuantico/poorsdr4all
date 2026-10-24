@@ -52,8 +52,10 @@ Linux propio y privado (Ubuntu 24.04) que se crea solo. OpenWebRX+ y los spots
 arrancan al abrir PoorSDR4All y se detienen al cerrarlo, como en Linux.
 Necesita conexión a Internet: la primera vez descarga Ubuntu (~370 MB) y
 compila OpenWebRX+ (20-40 minutos). Opcionalmente instala RTTY Power, el Libro
-de guardia (NMN1M) y el soporte para SDR por USB. Detalles en
-[`installer-windows/README.md`](installer-windows/README.md).
+de guardia (NMN1M) y el soporte para SDR por USB. Descarga además, de PyPI y
+con su huella SHA-256 comprobada, PyAV (que incluye FFmpeg) para el audio del
+acceso web y los mp3 de las macros: no va dentro del instalador por la licencia
+de FFmpeg. Detalles en [`installer-windows/README.md`](installer-windows/README.md).
 
 ## Estado por plataforma
 

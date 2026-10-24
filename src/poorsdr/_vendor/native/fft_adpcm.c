@@ -1,3 +1,12 @@
+/*
+ * Acelerador opcional de PoorSDR4All: decodificador IMA ADPCM (4 bits/muestra) para el audio/FFT
+ * comprimidos que envía OpenWebRX+.
+ *
+ * Copyright 2026 Acuantico Power. Licencia PolyForm Noncommercial 1.0.0 (ver LICENSE en la raíz).
+ *
+ * Las tablas index_table y step_table son las del estándar IMA ADPCM (Interactive Multimedia
+ * Association, 1992), una especificación pública; el algoritmo es el descrito en ella.
+ */
 #include <stddef.h>
 #include <stdint.h>
 

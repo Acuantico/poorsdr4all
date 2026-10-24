@@ -655,9 +655,11 @@ class MainWindow:
         gap_out = max(1, round(6 * self._scale))
         gap_in = max(1, round(34 * self._scale))
         ch_minus = tk.Button(ch, text="CH -", command=lambda: self.cb.channel(-1), **bstyle)
-        ch_minus.pack(side="left", padx=(gap_out, gap_in), pady=3)
+        # expand=True reparte el espacio sobrante: el ancho de los botones depende de la fuente (en caracteres),
+        # y con una más estrecha (Windows) el par quedaba pegado a la izquierda del recuadro en vez de centrado.
+        ch_minus.pack(side="left", expand=True, padx=(gap_out, gap_in), pady=3)
         ch_plus = tk.Button(ch, text="CH +", command=lambda: self.cb.channel(+1), **bstyle)
-        ch_plus.pack(side="left", padx=(gap_in, gap_out), pady=3)
+        ch_plus.pack(side="left", expand=True, padx=(gap_in, gap_out), pady=3)
         self._border(ch_minus)
         self._border(ch_plus)
         ch_help = self._help("help_channel_buttons")

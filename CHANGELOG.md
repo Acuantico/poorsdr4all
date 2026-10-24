@@ -2,6 +2,35 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.0a5]
+
+### Corregido
+
+- **Macros de llamada**: el final del audio ya no se corta (en Linux se mataba
+  `pacat` antes de que vaciara su cola y se perdía cerca de medio segundo).
+- **Macros de llamada**: la pausa entre activar el PTT y la primera muestra es
+  ahora exacta (0,20 s): el audio se prepara antes y el PTT se activa justo
+  antes de emitirlo. Tras el audio se mantiene el PTT 0,40 s para que no se
+  corte el final. Si el archivo no se puede decodificar, ya no se activa el PTT.
+- **Windows**: los botones CH - y CH + quedaban pegados a la izquierda de su
+  recuadro con la fuente de Windows; ahora se reparten y centran.
+- **Macros de llamada**: los WAV se reproducen con un lector propio, sin
+  `ffmpeg`; para mp3 se usa `ffmpeg` si existe y, si no, PyAV. En Windows se
+  reproduce con la misma sincronización por el dispositivo de audio de la radio.
+
+### Cambiado
+
+- **Distribución en Windows**: PyAV (con FFmpeg) ya no va dentro del
+  ejecutable por la licencia de FFmpeg; el instalador lo descarga de PyPI como
+  componente opcional, comprobando su SHA-256. La compilación falla si entrara
+  en el paquete.
+- **Distribución en Windows**: el instalador deja en `licenses\` los avisos de
+  terceros (`THIRD_PARTY_NOTICES.md`, `LICENSES\`) y un fichero con las licencias
+  de todas las dependencias empaquetadas, generado en cada compilación.
+- Se elimina la dependencia `pynput`, que no se usaba.
+- Avisos de terceros ampliados (PyAV/FFmpeg, instalador de Windows, imágenes) y
+  cabecera de licencia en el acelerador C.
+
 ## [1.0.0a4]
 
 ### Añadido

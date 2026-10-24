@@ -253,7 +253,7 @@ install_system_deps_arch() {
     tk gtk3 python-gobject python-cairo gobject-introspection cairo pango
     python python-pip
     python-numpy python-pillow python-psutil python-pyserial python-pyaudio
-    python-pynput python-matplotlib python-cryptography python-setuptools
+    python-matplotlib python-cryptography python-setuptools
   )
   pacman_install "${base[@]}"
   # librtlsdr: respetar rtl-sdr-blog si ya esta instalado (evita conflicto).
@@ -339,7 +339,7 @@ install_system_deps_debian() {
   log "Instalando dependencias del sistema (Debian/Ubuntu)..."
   local packages=(
     python3 python3-venv python3-tk python3-pip python3-gi python3-cairo gir1.2-gtk-3.0
-    python3-numpy python3-serial python3-pil python3-psutil python3-pynput python3-pyaudio
+    python3-numpy python3-serial python3-pil python3-psutil python3-pyaudio
     python3-matplotlib python3-cryptography python3-setuptools python3-all-dev
     python3-requests python3-yaml python3-dateutil
     ffmpeg libhamlib-utils libspeexdsp1 portaudio19-dev pulseaudio-utils

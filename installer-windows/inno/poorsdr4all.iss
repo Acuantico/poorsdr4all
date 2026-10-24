@@ -43,6 +43,12 @@ es.TipoPersonal=Instalación personalizada
 es.CompApp=PoorSDR4All (aplicación)
 es.CompOwrx=OpenWebRX+ (cascada), con WSL2 · recomendado
 es.CompUsb=Soporte para SDR por USB (usbipd-win)
+es.CompAv=Códec de audio (PyAV con FFmpeg) · se descarga de PyPI (unos 27 MB)
+es.DescargaTitulo=Descargando un componente
+es.DescargaTexto=Descargando PyAV (audio del acceso web y mp3 de las macros) desde PyPI...
+es.ErrorDescarga=No se pudo descargar el códec de audio (PyAV).%n%n%1%n%n¿Quieres continuar sin él? El acceso web remoto y los mp3 de las macros no funcionarán hasta que lo instales. Las macros en WAV sí.
+es.ErrorExtraer=No se pudo instalar el códec de audio descargado. Se continúa sin él.
+es.NotaAv=Se descargará de Internet (PyPI) el componente PyAV, que incluye FFmpeg. Se comprueba su huella SHA-256 y no forma parte de este instalador.
 es.CompRtty=RTTY Power (decodificador y transmisión RTTY)
 es.CompLibro=Libro de guardia (NMN1M)
 es.IconoLibro=Crear un icono del Libro de guardia en el escritorio
@@ -58,6 +64,12 @@ en.TipoPersonal=Custom installation
 en.CompApp=PoorSDR4All (application)
 en.CompOwrx=OpenWebRX+ (waterfall), with WSL2 · recommended
 en.CompUsb=USB SDR support (usbipd-win)
+en.CompAv=Audio codec (PyAV with FFmpeg) · downloaded from PyPI (about 27 MB)
+en.DescargaTitulo=Downloading a component
+en.DescargaTexto=Downloading PyAV (web access audio and macro mp3 files) from PyPI...
+en.ErrorDescarga=The audio codec (PyAV) could not be downloaded.%n%n%1%n%nDo you want to continue without it? Remote web access and mp3 macros will not work until you install it. WAV macros will.
+en.ErrorExtraer=The downloaded audio codec could not be installed. Continuing without it.
+en.NotaAv=The PyAV component, which includes FFmpeg, will be downloaded from the Internet (PyPI). Its SHA-256 hash is verified and it is not part of this installer.
 en.CompRtty=RTTY Power (RTTY decoder and transmitter)
 en.CompLibro=Station logbook (NMN1M)
 en.IconoLibro=Create a desktop icon for the station logbook
@@ -79,6 +91,7 @@ Name: "owrx"; Description: "{cm:CompOwrx}"; Types: full
 Name: "usb"; Description: "{cm:CompUsb}"; Types: full
 Name: "rtty"; Description: "{cm:CompRtty}"; Types: full
 Name: "libro"; Description: "{cm:CompLibro}"; Types: full
+Name: "av"; Description: "{cm:CompAv}"; Types: full
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Components: app
@@ -90,12 +103,24 @@ Source: "{#PayloadDir}\poorsdr4all-*.tar.gz"; DestDir: "{app}\payload"; Flags: i
 Source: "{#ToolsDir}\preparar-wsl.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion; Components: owrx
 Source: "{#ToolsDir}\sdr-ids.txt"; DestDir: "{app}\tools"; Flags: ignoreversion; Components: usb
 Source: "{#LicenseFile}"; DestDir: "{app}\licenses"; Flags: ignoreversion; Components: app
+; THIRD_PARTY_NOTICES.md, LICENSES\ y LICENCIAS-DEPENDENCIAS.txt (generado en cada compilación con lo que PyInstaller empaqueta).
+Source: "{#AddonsDir}\licencias\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: app
 ; Complementos: son paquetes Python que la consola descubre por sus metadatos (entry points) dentro de _internal.
 Source: "{#AddonsDir}\fuente-lic\*"; DestDir: "{app}\licenses\7LED"; Flags: ignoreversion; Components: app
 Source: "{#AddonsDir}\rtty\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: rtty
 Source: "{#AddonsDir}\rtty-lic\*"; DestDir: "{app}\licenses\rtty-power"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: rtty
 Source: "{#AddonsDir}\libro\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: libro
 Source: "{#AddonsDir}\libro-lic\*"; DestDir: "{app}\licenses\nmn1m"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: libro
+
+[InstallDelete]
+; Al actualizar desde una versión anterior (1.0.0a4 llevaba PyAV/FFmpeg dentro del ejecutable) se retira lo que ya
+; no se distribuye dentro: ahora PyAV se descarga en «extras» y no debe quedar una copia vieja en _internal.
+Type: filesandordirs; Name: "{app}\_internal\av"
+Type: filesandordirs; Name: "{app}\_internal\av.libs"
+Type: filesandordirs; Name: "{app}\_internal\av-*.dist-info"
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\extras"
 
 [Icons]
 Name: "{autoprograms}\PoorSDR4All\PoorSDR4All"; Filename: "{app}\PoorSDR4All.exe"; Components: app
@@ -110,9 +135,71 @@ Filename: "{app}\PoorSDR4All.exe"; Parameters: "--asistente-wsl"; Description: "
 Filename: "{app}\PoorSDR4All.exe"; Description: "{cm:LaunchProgram,PoorSDR4All}"; Flags: nowait postinstall skipifsilent unchecked runasoriginaluser; Components: app
 
 [Code]
+const
+  // PyAV 17.1.0 (compatible con aiortc 1.x). Rueda oficial de PyPI para Windows x64 (abi3: sirve para Python 3.12).
+  // URL y SHA-256 comprobados contra https://pypi.org/pypi/av/17.1.0/json. PyAV trae FFmpeg, cuyas bibliotecas son
+  // LGPL y, según la compilación, incluyen códecs GPL (x264/x265): por eso NO va dentro del instalador.
+  AvUrl = 'https://files.pythonhosted.org/packages/6b/f2/53a7cd34adb6a971d7e6d99663e74db286966c9db8afdca17472fdf0f98e/av-17.1.0-cp311-abi3-win_amd64.whl';
+  AvSha256 = '5df5c1172ef1cf65a1529d612f7da7798ce2cf82c1ff7212466b538a6cc7214c';
+  AvFichero = 'av-componente.zip';   // una rueda es un .zip
+
 var
   ReinicioWsl: Boolean;
   WslListo: Boolean;
+  DescargaPagina: TDownloadWizardPage;
+  AvOmitido: Boolean;
+
+procedure InitializeWizard;
+begin
+  DescargaPagina := CreateDownloadPage(CustomMessage('DescargaTitulo'), CustomMessage('DescargaTexto'), nil);
+end;
+
+// Descarga la rueda de PyAV comprobando su SHA-256. Si falla, ofrece seguir sin el componente.
+function DescargarAv: Boolean;
+var
+  Detalle: String;
+begin
+  Result := FileExists(ExpandConstant('{tmp}\' + AvFichero));
+  if Result then
+    Exit;
+  DescargaPagina.Clear;
+  DescargaPagina.Add(AvUrl, AvFichero, AvSha256);
+  DescargaPagina.Show;
+  try
+    try
+      DescargaPagina.Download;
+      Result := True;
+    except
+      Detalle := GetExceptionMessage;
+      Result := False;
+    end;
+  finally
+    DescargaPagina.Hide;
+  end;
+  if not Result then
+    AvOmitido := SuppressibleMsgBox(FmtMessage(CustomMessage('ErrorDescarga'), [Detalle]),
+      mbError, MB_YESNO or MB_DEFBUTTON2, IDYES) = IDYES;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  // Se descarga antes de copiar nada: si no hay conexión, el usuario decide antes de que se instale a medias.
+  if (CurPageID = wpReady) and WizardIsComponentSelected('av') then
+  begin
+    if not DescargarAv then
+      Result := AvOmitido;
+  end;
+end;
+
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo,
+  MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
+begin
+  Result := MemoDirInfo + NewLine + NewLine + MemoTypeInfo + NewLine + NewLine + MemoComponentsInfo
+    + NewLine + NewLine + MemoGroupInfo + NewLine + NewLine + MemoTasksInfo;
+  if WizardIsComponentSelected('av') then
+    Result := Result + NewLine + NewLine + CustomMessage('NotaAv');
+end;
 
 function NeedRestart(): Boolean;
 begin
@@ -127,8 +214,25 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Codigo: Integer;
-  Parametros, Script: String;
+  Parametros, Script, Zip, Destino: String;
 begin
+  if (CurStep = ssInstall) and WizardIsComponentSelected('av') and (not AvOmitido) then
+  begin
+    // Instalación silenciosa: no pasa por la página "Listo para instalar", así que se descarga aquí.
+    if DescargarAv then
+    begin
+      Zip := ExpandConstant('{tmp}\' + AvFichero);
+      StringChangeEx(Zip, '''', '''''', True);
+      Destino := ExpandConstant('{app}\extras');
+      ForceDirectories(Destino);
+      if (not Exec('powershell.exe',
+            '-NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath ''' + Zip +
+            ''' -DestinationPath ''' + Destino + ''' -Force"',
+            '', SW_HIDE, ewWaitUntilTerminated, Codigo))
+         or (Codigo <> 0) or (not FileExists(Destino + '\av\__init__.py')) then
+        SuppressibleMsgBox(CustomMessage('ErrorExtraer'), mbError, MB_OK, IDOK);
+    end;
+  end;
   if (CurStep = ssPostInstall) and WizardIsComponentSelected('owrx') then
   begin
     WizardForm.StatusLabel.Caption := CustomMessage('PreparandoWsl');

@@ -12,6 +12,7 @@ Un único PoorSDR4All.exe hace varias cosas según cómo se le llame:
     PoorSDR4All.exe --libro-guardia          abre el Libro de guardia (NMN1M) como programa independiente
     PoorSDR4All.exe --aviso-sdr <fichero>    ventana con el aviso de «SDR no disponible» (la lanza la propia app)
 """
+import contextlib
 import multiprocessing
 import os
 import runpy
@@ -26,6 +27,26 @@ for _nombre in ("stdout", "stderr"):
             getattr(sys, _nombre).reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
+
+
+def _preparar_componentes_externos() -> None:
+    """PyAV (con FFmpeg) no va dentro del ejecutable por la licencia de FFmpeg: el instalador lo descarga de
+    PyPI en la carpeta ``extras`` junto al programa. Se añade al camino de importación (y sus DLL) antes de que
+    nada intente ``import av``. También cubre las ventanas auxiliares, que se lanzan con este mismo ejecutable."""
+    if not getattr(sys, "frozen", False):
+        return
+    extras = os.path.join(os.path.dirname(sys.executable), "extras")
+    if not os.path.isdir(extras):
+        return
+    if extras not in sys.path:
+        sys.path.insert(0, extras)
+    libs = os.path.join(extras, "av.libs")
+    if os.path.isdir(libs) and hasattr(os, "add_dll_directory"):
+        with contextlib.suppress(OSError):
+            os.add_dll_directory(libs)
+
+
+_preparar_componentes_externos()
 
 
 def _asistente(argumentos: list[str]) -> int:

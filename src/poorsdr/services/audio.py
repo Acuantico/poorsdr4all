@@ -253,23 +253,95 @@ class AudioService(BaseService):
             except Exception:  # noqa: BLE001
                 self.log.debug("no se pudo reiniciar el ANR del contexto %s", ctx, exc_info=True)
 
-    def play_file(self, path: str, stop_checker: Callable[[], bool] | None = None) -> bool:
+    def play_file(
+        self,
+        path: str,
+        stop_checker: Callable[[], bool] | None = None,
+        on_ready: Callable[[], bool] | None = None,
+    ) -> bool:
         """Reproduce ``path`` hacia el micro de la radio (bloqueante).
-
-        Usa ``reproducir_audio_en_radio`` del módulo heredado: abre su propio
-        stream PyAudio hacia ``Microfono_Radio_Index`` (independiente del
-        pipeline RX/TX en vivo), así que no hace falta pasar por
-        ``start_tx``/``stop_tx``. Lo inyecta ``runtime.build_context`` como
-        ``play_audio`` de :class:`~poorsdr.services.autocall.AutocallService`.
 
         ``stop_checker`` (si se pasa) se consulta entre bloques de audio: al
         volverse ``True`` corta el streaming en el acto en vez de esperar a
         que termine el archivo — es lo que permite que "pulsar el botón"
         detenga la reproducción y el TX al momento, no al acabar la macro.
+
+        ``on_ready`` (si se pasa) se llama cuando el audio ya está preparado y
+        justo antes de emitir la primera muestra; es donde el llamador activa
+        el PTT y espera su pausa exacta. Si devuelve ``False`` no se emite
+        nada. La reproducción se hace aquí
+        (:mod:`poorsdr.services.tx_playback`), en Linux/Pulse y en Windows/PyAudio:
+        el módulo heredado cortaba el final del audio, no podía sincronizarse con
+        el PTT y exigía ``ffmpeg``. Solo si no se puede abrir ninguna de las dos
+        rutas se delega en ``reproducir_audio_en_radio``.
         """
+        pulse = self._pulse_tx_params()
+        if pulse is not None:
+            from poorsdr.services.tx_playback import play_through_pacat
+
+            return play_through_pacat(
+                path, stop_checker=stop_checker, on_ready=on_ready, **pulse
+            )
+        stream = self._stream_tx_params()
+        if stream is not None:
+            from poorsdr.services.tx_playback import play_through_stream
+
+            return play_through_stream(
+                path, stop_checker=stop_checker, on_ready=on_ready, **stream
+            )
+        if on_ready is not None and not on_ready():
+            return False
         return bool(
             self.call("reproducir_audio_en_radio", path, wait=True, stop_checker=stop_checker)
         )
+
+    def _stream_tx_params(self) -> dict[str, Any] | None:
+        """Parámetros de la salida PyAudio hacia la radio (Windows y resto sin Pulse),
+        o ``None`` si el módulo heredado no la expone."""
+        mod = self._module
+        if mod is None or getattr(mod, "_linux_audio_runtime", False):
+            return None
+        opener = getattr(mod, "_abrir_stream_radio", None)
+        config = getattr(mod, "_obtener_config_radio", None)
+        ffmpeg = getattr(mod, "_get_ffmpeg_binary", None)
+        if not (callable(opener) and callable(config) and callable(ffmpeg)):
+            return None
+        try:
+            channels, rate = config()
+            return {
+                "open_stream": lambda: opener(int(channels), int(rate)),
+                "ffmpeg": str(ffmpeg()),
+                "rate": int(rate),
+                "channels": int(channels),
+            }
+        except Exception:  # noqa: BLE001 - cualquier cambio interno → respaldo heredado
+            self.log.debug("sin ruta PyAudio propia para TX; uso el módulo heredado", exc_info=True)
+            return None
+
+    def _pulse_tx_params(self) -> dict[str, Any] | None:
+        """Parámetros de la salida Pulse hacia la radio, o ``None`` si no aplica
+        (no es Linux/Pulse o el módulo heredado no expone lo necesario)."""
+        mod = self._module
+        if mod is None or not getattr(mod, "_linux_audio_runtime", False):
+            return None
+        try:
+            sink, _ch, _rate = mod._get_pulse_device_details(
+                "sinks", "Microfono_Radio_Pulse", "Microfono_Radio"
+            )
+            if not sink:
+                return None
+            channels, rate = mod._obtener_config_radio()
+            mod._prepare_tx_pulse_sink(sink)
+            return {
+                "ffmpeg": str(mod._get_ffmpeg_binary()),
+                "sink": str(sink),
+                "rate": int(rate),
+                "channels": int(channels),
+                "latency_ms": int(getattr(mod, "PULSE_LATENCY_MSEC", 20)),
+            }
+        except Exception:  # noqa: BLE001 - cualquier cambio interno → respaldo heredado
+            self.log.debug("sin ruta Pulse propia para TX; uso el módulo heredado", exc_info=True)
+            return None
 
     def start_tune_tone(self) -> None:
         self.start_tx()
