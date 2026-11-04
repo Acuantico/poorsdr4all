@@ -4,14 +4,204 @@
 
 # PoorSDR4All
 
+**English** · [Español](#español)
+
+Radio operating console: CAT control, rigctld proxy, OpenWebRX+, waterfall,
+digital modes, remote web server, calling (CQ) macros and plugins.
+
+📖 **Wiki / user documentation:** https://acuanticopower.com/poorsdr4all/ *(in Spanish)*
+
+<p align="center">
+  <img src="docs/images/screenshot-consola.png" alt="PoorSDR4All console, waterfall and Nunca Más, Ni Una Más running" width="100%">
+</p>
+
+This is the first public **Alpha** release. It works in the main development
+environment, but it still needs community validation with more radios, audio
+devices and operating systems.
+
+> **Language note:** the documentation inside this repository (`docs/`, the
+> installer READMEs, the plugins) is currently written in Spanish. The
+> application interface is available in several languages.
+
+## Linux installation — graphical installer (recommended)
+
+The easiest way to install PoorSDR4All is the official graphical installer: a
+single self-extracting file that installs the dependencies, OpenWebRX+, the LED
+font for the frequency display and a launcher in the applications menu, without
+touching the terminal.
+
+**[⬇ Download the Linux installer (Releases)](https://github.com/Acuantico/poorsdr4all/releases/latest)**
+
+It works on Arch Linux, Debian, Ubuntu and Raspberry Pi OS (64-bit). Verify the
+integrity of the downloaded file with the `.sha256` that ships with every
+release:
+
+```sh
+chmod +x poorsdr4all-installer-*-linux.run
+sha256sum -c poorsdr4all-installer-*-linux.run.sha256
+./poorsdr4all-installer-*-linux.run
+```
+
+Under the hood it literally runs `scripts/install.sh` (see below) with a
+graphical front end on top — it doesn't reimplement anything. Details of the
+wizard, environment variables and verification are in
+[`installer-build/README.md`](installer-build/README.md) and
+[`docs/INSTALL.md`](docs/INSTALL.md).
+
+## Windows installation — graphical installer
+
+**[⬇ Download the Windows installer (Releases)](https://github.com/Acuantico/poorsdr4all/releases/latest)**
+
+A single `.exe` (Windows 10 version 2004 or later / Windows 11, 64-bit). It
+installs the application, sets up **WSL2** and leaves **OpenWebRX+** running
+inside its own private Linux (Ubuntu 24.04), which is created automatically.
+OpenWebRX+ and the spots start when PoorSDR4All opens and stop when it closes,
+as on Linux. An Internet connection is required: the first time it downloads
+Ubuntu (~370 MB) and builds OpenWebRX+ (20–40 minutes). Optionally it installs
+RTTY Power, the station log book «Libro de guardia» (NMN1M) and USB SDR support.
+It also downloads PyAV (which includes FFmpeg) from PyPI, with its SHA-256 hash
+verified, for the web access audio and the macros' mp3 files: it is not bundled
+inside the installer because of FFmpeg's license. Details in
+[`installer-windows/README.md`](installer-windows/README.md).
+
+## Status by platform
+
+| Platform | Alpha status | Scope |
+|---|---|---|
+| Arch Linux x86-64 | Functional validation by the maintainer | Main platform |
+| Debian/Ubuntu x86-64 and arm64 | Automated build and tests planned | Pending validation on real hardware |
+| Windows 10/11 x86-64 | Graphical `.exe` installer (WSL2 + OpenWebRX+); tested in a Windows 11 virtual machine | Alpha; not yet tested with a real SDR or on users' machines |
+
+CI results check that the code installs, passes its tests and builds; they are
+not a substitute for a physical test of radio, CAT, SDR or audio. Failure
+reports from other platforms are welcome in the issue tracker.
+
+## Manual installation from source
+
+An alternative to the graphical installer above: for Windows, for those who
+prefer to review every step, or to integrate PoorSDR4All into their own
+environment. Python 3.11 or later is required. The C accelerator is optional:
+if it is not built, the waterfall uses the bundled Python implementation.
+
+```sh
+git clone https://github.com/Acuantico/poorsdr4all.git
+cd poorsdr4all
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install .
+python scripts/build_native.py       # optional
+python -m poorsdr
+```
+
+In Windows PowerShell:
+
+```powershell
+git clone https://github.com/Acuantico/poorsdr4all.git
+Set-Location poorsdr4all
+py -3.11 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install .
+python scripts\build_native.py       # optional; requires MSVC, clang or gcc
+python -m poorsdr
+```
+
+The full OpenWebRX+ installer for Arch and Debian is documented in
+[`docs/INSTALL.md`](docs/INSTALL.md). No native binaries are included in the
+repository: each machine builds them for its own system.
+
+## Included plugins
+
+Plugins are separate, optional distributions: PoorSDR4All works without any of
+them. Install only the ones you want, in the same environment:
+
+```sh
+python -m pip install ./plugins/rtty-power
+```
+
+The graphical installer and `scripts/install.sh` can also install them
+(`INSTALL_PLUGIN_RTTY=1`, `INSTALL_PLUGIN_NMN1M=1`); by default they install
+none.
+
+- **[RTTY Power](plugins/rtty-power/README.md)** — «RTTY» button: RTTY decoder
+  and TX using the uSDX audio, with helpers for contests (CQ WW RTTY).
+  Wiki / user manual: https://acuanticopower.com/poorsdr4all/rtty-power/
+  *(in Spanish)*
+
+The «Log» button is provided by **[Nunca Más, Ni Una Más (NMN1M)](https://github.com/Acuantico/nmn1m)**,
+a station log book / contest logger that is its own independent project, with
+its own wiki: https://acuanticopower.com/nmn1m/ *(in Spanish)* — install it
+separately in the same environment so the console discovers it; without it the
+console works just the same, only without that button.
+
+Configuration, logs and databases are stored in the user's directories, never
+inside the installed package.
+
+## Architecture
+
+```text
+poorsdr/
+  infra/        user paths, logging and EventBus
+  config/       typed model and configuration migration
+  core/         pure logic for CAT, bands, tuning, waterfall and OWRX
+  services/     radio, audio, rigctld, OWRX and web lifecycle
+  ui/           Tkinter interface
+  viewers/      waterfall and digital panel
+  i18n/         translations
+  _vendor/      legacy adapters and an identified AGPL component
+```
+
+The dependency direction is `ui → services → core/config/infra`. See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for details.
+
+## Security
+
+The web server is disabled by default and does not start without a password and
+a signing secret. Do not expose the CAT, rigctld, OpenWebRX or spiderd ports
+directly to the Internet. See [`SECURITY.md`](SECURITY.md).
+
+## Licenses
+
+The original PoorSDR4All code is offered under the
+**[PolyForm Noncommercial License 1.0.0](https://acuanticopower.com/poorsdr4all/license)**.
+Commercial use requires a separate agreement with **Acuantico Power**:
+
+https://acuanticopower.com/en/contact/
+
+PoorSDR4All is source-available software, not open-source software approved by
+the OSI. Some components and data keep their AGPL, GPL, BSD, MIT, CC-BY or
+public-domain terms. Their revisions, changes, attributions and texts can be
+found in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and `LICENSES/`.
+
+External contributions require accepting the [`CLA.md`](CLA.md). The rules are
+in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Development and release
+
+```sh
+python -m pip install -e ".[dev,web]"
+ruff check src tests
+mypy src
+pytest -q
+python scripts/check_release.py
+python -m build
+python scripts/write_checksums.py
+python scripts/check_artifacts.py
+```
+
+The full procedure is in [`docs/RELEASING.md`](docs/RELEASING.md).
+
+---
+
+# Español
+
+[English](#poorsdr4all) · **Español**
+
 Consola de operación de radio: control CAT, proxy rigctld, OpenWebRX+, cascada,
 modos digitales, servidor web remoto, macros de llamada y plugins.
 
 📖 **Wiki / documentación de usuario:** https://acuanticopower.com/poorsdr4all/
-
-<p align="center">
-  <img src="docs/images/screenshot-consola.png" alt="Consola de PoorSDR4All, cascada y Nunca Más, Ni Una Más en marcha" width="100%">
-</p>
 
 Esta es la primera versión pública **Alpha**. Es funcional en el entorno
 principal de desarrollo, pero todavía necesita validación comunitaria con más
