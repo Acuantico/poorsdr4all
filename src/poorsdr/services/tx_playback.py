@@ -59,7 +59,7 @@ def precise_wait(
     seconds: float,
     cancelled: Callable[[], bool],
     *,
-    clock: Callable[[], float] = time.monotonic,
+    clock: Callable[[], float] = time.perf_counter,
     sleep: Callable[[float], None] = time.sleep,
     spin_s: float = 0.002,
 ) -> bool:
@@ -67,7 +67,8 @@ def precise_wait(
 
     Duerme de forma gruesa hasta ``spin_s`` antes del plazo (el sueño del SO
     puede pasarse por un par de ms) y el último tramo lo cubre con una espera
-    activa breve sobre el reloj monotónico.
+    activa breve sobre un reloj de alta resolución (``perf_counter``: en Windows con Python
+    anterior a 3.13, ``monotonic`` avanza a saltos de ~15 ms y la espera podía acabar antes).
     """
     if seconds <= 0:
         return not cancelled()
