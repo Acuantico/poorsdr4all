@@ -6,7 +6,7 @@ PoorSDR4All en Windows 10 (2004 o posterior) y 11, 64 bits.
 ## Qué hace
 
 1. Instala la aplicación (PyInstaller, carpeta `Program Files\PoorSDR4All`) con sus accesos directos.
-2. **Prepara WSL2** (si falta): instala el paquete de WSL desde GitHub (comprueba la firma digital de Microsoft),
+2. **Prepara WSL2** (si falta): antes comprueba que el equipo admite la virtualización por hardware (si no, lo explica y sigue sin OpenWebRX+); instala el paquete de WSL desde GitHub (comprueba la firma digital de Microsoft),
    activa los componentes de Windows y, si hace falta reiniciar, el asistente continúa solo después.
 3. **Asistente de OpenWebRX+** (`PoorSDR4All.exe --asistente-wsl`): descarga Ubuntu 24.04 (la imagen oficial, con
    comprobación SHA-256), crea una distribución WSL **propia y privada** llamada `PoorSDR4All` y ejecuta dentro el
@@ -51,6 +51,7 @@ python -m pytest installer-windows/tests
 
 ## Limitaciones conocidas
 
+- OpenWebRX+ necesita virtualización por hardware (Intel VT-x con SLAT, o AMD-V con RVI) **activada en la BIOS/UEFI**. El instalador lo comprueba antes de tocar nada: si no está disponible, avisa de que puede hacer falta activarla en la BIOS o consultar la documentación de la placa, e instala PoorSDR4All sin OpenWebRX+.
 - Probado en una máquina virtual con Windows 11; **sin SDR real** ni en equipos de usuarios todavía.
 - Mientras un SDR está conectado a WSL, Windows no puede usarlo; al cerrar PoorSDR4All vuelve a Windows.
 - El `.exe` no está firmado: SmartScreen puede mostrar un aviso.

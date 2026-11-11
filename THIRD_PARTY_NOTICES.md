@@ -22,6 +22,28 @@ sdist para que el instalador de Linux pueda copiarlo como servicio separado,
 pero se excluye del wheel de PoorSDR4All; no se relicencia ni se combina con el
 código propio bajo PolyForm.
 
+### segno (códigos QR)
+
+- Origen: https://github.com/heuer/segno — versión 1.6.6
+- Autor: Lars Heuer
+- Licencia: `BSD-3-Clause` (`LICENSES/BSD-3-Clause-segno.txt`; también junto al código)
+- Ubicación: `src/poorsdr/_vendor/segno/`, sin modificar.
+- Uso: QR de configuración de los dispositivos de la VPN (Ajustes → VPN).
+
+### Ayudante WireGuard `poorsdrvpn`
+
+- Fuente propia: `scripts/vpn/poorsdrvpn/` (`scripts/vpn/build.sh` lo compila).
+- Binarios: `src/poorsdr/_vendor/bin/poorsdrvpn-{linux-amd64,linux-arm64,windows-amd64.exe}`.
+- Llevan enlazados, sin modificar:
+
+| Módulo Go | Versión | Licencia | Texto |
+|---|---|---|---|
+| [wireguard-go](https://git.zx2c4.com/wireguard-go) | `v0.0.0-20261006164505-2631ce99a06f` | `MIT` | `LICENSES/MIT-wireguard-go.txt` |
+| [wintun (Go)](https://git.zx2c4.com/wintun-go) — solo Windows | `v0.0.0-20230126152724-0fa3db229ce2` | `MIT` (mismo texto que wireguard-go) | `LICENSES/MIT-wireguard-go.txt` |
+| [gVisor](https://github.com/google/gvisor) | `v0.0.0-20250503011706-39ed1f5ac29c` | `Apache-2.0` | `LICENSES/Apache-2.0-gvisor.txt` |
+| [google/btree](https://github.com/google/btree) | `v1.1.2` | `Apache-2.0` | `LICENSES/Apache-2.0-btree.txt` |
+| golang.org/x/crypto, net, sys, time | `v0.37.0`, `v0.39.0`, `v0.32.0`, `v0.7.0` | `BSD-3-Clause` | `LICENSES/BSD-3-Clause-golang-x.txt` |
+
 ### makeself
 
 - Origen: https://makeself.io/ (https://github.com/megastep/makeself)
@@ -34,6 +56,19 @@ código propio bajo PolyForm.
   partir de `installer-build/build.sh`. El propio proyecto makeself aclara que
   los archivos autoextraíbles que produce no quedan sujetos a la GPL — solo la
   herramienta en sí.
+
+**Marca.** WireGuard es una marca registrada de Jason A. Donenfeld. PoorSDR4All
+usa esa tecnología pero no está afiliado ni respaldado por el proyecto WireGuard.
+
+**Comprobación de los binarios.** Se compilan con `scripts/vpn/build.sh` a partir
+de `scripts/vpn/poorsdrvpn` (versiones fijadas en `go.sum`). Sumas SHA-256 de los
+incluidos en esta versión:
+
+| Binario | SHA-256 |
+|---|---|
+| `poorsdrvpn-linux-amd64` | `206ac5fd7b3e9ddc3b5e680faa056a176d5b0f7978ab928de80121cd1240d848` |
+| `poorsdrvpn-linux-arm64` | `4d2a54c1acaf70495132e407692d53178e594de2393763b7b2fb265406ffe520` |
+| `poorsdrvpn-windows-amd64.exe` | `c94bd2426b890b8bee07c17ac3522f1cb589b9450bf3ffe37ffa06d6d6823614` |
 
 ## Proyectos descargados y compilados por el instalador
 

@@ -2,6 +2,54 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
+## [1.0.0a6]
+
+### Añadido
+
+- **Acceso desde internet por VPN WireGuard integrada** (Ajustes → VPN). El
+  ayudante `poorsdrvpn` (wireguard-go en espacio de usuario, sin permisos de
+  administrador; fuente en `scripts/vpn/poorsdrvpn`) levanta el túnel
+  10.9.0.0/24 en UDP 51821 (red y puertos distintos de IRCB Pro). Con la VPN
+  activa el panel web solo escucha en 127.0.0.1 (o también en la LAN si se
+  marca), siempre por HTTPS, y el audio WebRTC viaja por dentro del túnel
+  (candidato ICE en 127.0.0.1:51840-51849 anunciado como 10.9.0.1). Alta de
+  dispositivos con QR para la app WireGuard, baja, estado de conexión y aviso
+  de CG-NAT y de qué reenviar en el router (sin tocar el router). Ver
+  `docs/REMOTO.md`.
+- **PTT remoto seguro**: canal de datos WebRTC `ptt` con número de pulsación,
+  latido cada 100 ms (respaldo por `/api/ptt` cada 250 ms), hombre muerto
+  (`REMOTE_PTT_DEADMAN_MS`, 700 ms), tope de TX continua (`REMOTE_PTT_MAX_S`,
+  300 s) y cola al soltar (`REMOTE_PTT_TAIL_MS`, 150 ms). Antes, si se caía la
+  red o se cerraba la pestaña en TX, la radio seguía transmitiendo. Un latido
+  que llega tarde ya no vuelve a poner la radio en TX. Los latidos los marca
+  un Web Worker para que no los frene el navegador en segundo plano.
+- `scripts/bench_remoto.py`: banco del remoto sin radio (salidas virtuales de
+  PipeWire + cliente aiortc) que mide RX, TX, PTT→voz, huecos de RX y el
+  hombre muerto; `--vpn` hace todo a través del túnel con `scripts/vpn/wgrelay`.
+
+### Cambiado
+
+- Latencias del remoto (medidas con el banco): RX 98 → 41-53 ms, TX 384 → ~82 ms,
+  PTT→primera voz 177 → ~90 ms, sin huecos. Tubería hacia `pacat` de TX de
+  4 KB (antes 64 KB: ~340 ms encolados), búfer de jitter de audio directo en
+  aiortc, colchón acotado de la voz remota (`REMOTE_TX_BUFFER_MS`/`MAX_MS`),
+  ajustes del sink-input de TX en paralelo en remoto, captura RX remota a
+  20 ms (`WEB_RX_PULSE_LATENCY_MSEC`), recorte del retraso fijo sobrante de
+  la cola RX y alineación del reloj de la pista RX con la captura.
+- **Instalador de Windows: comprobación de virtualización.** Antes de preparar WSL2 comprueba si el equipo la admite (SLAT y virtualización por hardware activada en la BIOS/UEFI). Si no es así, avisa con el motivo, indica que puede ser necesario activarla en la BIOS o consultar la documentación de la placa, e instala PoorSDR4All sin OpenWebRX+, sin descargar WSL ni pedir un reinicio inútil.
+
+### Corregido
+
+- En Linux, entrar o salir del modo remoto no reabría la captura RX (el
+  trabajador de audio solo reabre al cambiar de modo y "idle"+"rx" seguidos no
+  llegaba a verlo): el remoto seguía con la latencia y el bloque del modo
+  local y el audio llegaba a ráfagas. Ahora hay una petición explícita de
+  reapertura. Consecuencia visible: mientras haya un cliente remoto
+  conectado, la escucha local por los altavoces del PC se detiene (era el
+  diseño previsto y ya pasaba en Windows).
+- Al parar el servidor web quedaba una traza de `CancelledError` del
+  `lifespan` de uvicorn.
+
 ## [1.0.0a5]
 
 ### Corregido

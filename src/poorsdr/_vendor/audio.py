@@ -222,9 +222,12 @@ TX_PULSE_LATENCY_MSEC = max(20, int(config.get("TX_PULSE_LATENCY_MSEC", 50) or 5
 # monitor local, ver el `if not _remote_mode` más abajo), que ya absorbe
 # jitter con su propia cola por oyente — así que puede pedirse un búfer más
 # corto a PulseAudio sin arriesgar el playback local (que no existe en este
-# modo), reduciendo el tiempo hasta que llega la primera muestra real tras
-# reabrir el stream (p. ej. justo al soltar PTT).
-WEB_RX_PULSE_LATENCY_MSEC = max(20, int(config.get("WEB_RX_PULSE_LATENCY_MSEC", 30) or 30))
+# modo). Confirmado en real (`rx_capture.log`, `mode_switch`): activar RX
+# tras soltar PTT tardaba ~30 ms en abrir el proceso, pero con
+# RX_PULSE_LATENCY_MSEC=70 el primer audio real no llegaba hasta bastante
+# después de eso — de ahí que "soltar PTT" siguiera petardeando pese a que
+# el propio cambio de modo ya fuera rápido.
+WEB_RX_PULSE_LATENCY_MSEC = max(20, int(config.get("WEB_RX_PULSE_LATENCY_MSEC", 20) or 20))
 # Internal SDR timing knobs (not user-configurable; keep out of config.json).
 SDR_PULSE_LATENCY_MSEC = 110
 SDR_BATCH_FRAMES = 4
@@ -287,13 +290,20 @@ _tx_inject_last_chunk = None
 _tx_inject_last_time = 0.0
 _tx_inject_pending = None
 _tx_inject_pending_rate = 48000
+# Voz remota (WebRTC): colchón contra el jitter de la red y techo de retraso.
+# Solo se aplican a la voz del navegador; RTTY, digitales y el tono inyectan
+# mensajes enteros de golpe y no deben recortarse.
+REMOTE_TX_BUFFER_MS = max(0, int(config.get("REMOTE_TX_BUFFER_MS", 40) or 0))
+REMOTE_TX_MAX_MS = max(REMOTE_TX_BUFFER_MS + 40, int(config.get("REMOTE_TX_MAX_MS", 120) or 120))
+_tx_inject_primed = False
+_tx_inject_dropped_ms = 0.0
 _tx_capture_source = "mic"
 _TX_APP_HINTS = ("wsjtx", "jtdx", "freedv", "js8call")
 _tx_tone_active = False
 _tx_tone_thread: Optional[threading.Thread] = None
 _tx_tone_stop_event = threading.Event()
 #: Igual que ``_tx_tone_active`` pero para inyección genérica desde dentro del
-#: propio proceso (p. ej. un plugin de modo digital como RTTY): sin esto,
+#: propio proceso (p. ej. RTTY vía ``services.rtty.RttyEngine``): sin esto,
 #: ``inject_tx_audio()`` no tiene efecto en modo local/nativo (solo se
 #: consumía en remoto/WebRTC o con capture_mode "app"), así que la radio
 #: arma el PTT pero no sale nada de audio.
@@ -316,6 +326,8 @@ _audio_worker_thread = None
 _audio_worker_event = threading.Event()
 _audio_worker_stop = False
 _audio_requested_mode = "idle"
+# Reabrir los streams del modo en curso (ver _request_linux_audio_reopen).
+_audio_reopen_requested = False
 _tx_diag_last_ts_by_stage = {}
 
 # OpenWebRX audio capture (Linux/Pulse) to allow applying ANR to "audio SDR".
@@ -352,6 +364,15 @@ _sdr_chunk_enqueue_fail_total = 0
 def _sdr_log(msg: str) -> None:
     try:
         path = str(runtime_path("sdr_audio.log"))
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:
+        _ignore_exception("ignored exception")
+
+
+def _rx_capture_log(msg: str) -> None:
+    try:
+        path = str(runtime_path("rx_capture.log"))
         with open(path, "a", encoding="utf-8") as f:
             f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
     except Exception:
@@ -872,7 +893,16 @@ def _best_pulse_description(entry: dict) -> str:
     return _domain_best_pulse_description(entry)
 
 
+# Una apertura de TX/RX pregunta varias veces la misma lista (~6 ms cada
+# `pactl`): durante este plazo se reutiliza la última respuesta.
+_PULSE_LIST_TTL_S = 0.5
+_pulse_list_cache: dict[str, tuple[float, list[dict]]] = {}
+
+
 def _list_pulse_devices(kind: str) -> list[dict]:
+    cached = _pulse_list_cache.get(kind)
+    if cached and time.monotonic() - cached[0] < _PULSE_LIST_TTL_S:
+        return list(cached[1])
     try:
         result = subprocess.run(
             ["pactl", "-f", "json", "list", kind],
@@ -883,7 +913,8 @@ def _list_pulse_devices(kind: str) -> list[dict]:
         payload = json.loads(result.stdout or "[]")
         entries = _domain_parse_pulse_device_entries(payload)
         if entries:
-            return entries
+            _pulse_list_cache[kind] = (time.monotonic(), entries)
+            return list(entries)
     except Exception:
         _ignore_exception("ignored exception")
 
@@ -1024,6 +1055,30 @@ def _read_exact(stream, size: int) -> bytes:
     return bytes(chunks)
 
 
+# F_SETPIPE_SZ (Linux): tamaño del búfer de una tubería.
+_F_SETPIPE_SZ = 1031
+_TX_PIPE_BYTES = 4096
+
+
+def _shrink_tx_pipe(process: Optional[subprocess.Popen]) -> None:
+    """Reduce la tubería hacia el ``pacat`` de TX a su mínimo (una página).
+
+    El bucle TX no tiene otro freno que el bloqueo al escribir en esa tubería,
+    y por defecto mide 64 KB: unos 340 ms de audio a 48 kHz estéreo que se
+    quedaban encolados entre PoorSDR y ``pacat`` antes de que sonara nada
+    (medido con scripts/bench_remoto.py: 384 ms de retraso en TX remoto). Con
+    4 KB la cola queda en ~21 ms y el ritmo lo marca la latencia de ``pacat``.
+    """
+    if process is None or process.stdin is None:
+        return
+    try:
+        import fcntl
+
+        fcntl.fcntl(process.stdin.fileno(), _F_SETPIPE_SZ, _TX_PIPE_BYTES)
+    except Exception:
+        _ignore_exception("F_SETPIPE_SZ no disponible")
+
+
 def _close_subprocess_io(process: Optional[subprocess.Popen]) -> None:
     if process is None:
         return
@@ -1101,6 +1156,18 @@ def _prepare_tx_pulse_sink_input(process: Optional[subprocess.Popen], pulse_sink
             _run_pactl("move-sink-input", str(idx_int), str(pulse_sink))
 
 
+def _prepare_tx_pulse_output_async(process: Optional[subprocess.Popen], pulse_sink: Optional[str]) -> None:
+    """En remoto cada PTT abre un ``pacat`` nuevo: esperar a que aparezca su
+    sink-input y ajustarlo (~75 ms de `pactl`) retrasaba la voz. Se hace en
+    paralelo mientras el audio ya sale."""
+
+    def run() -> None:
+        _prepare_tx_pulse_sink(pulse_sink)
+        _prepare_tx_pulse_sink_input(process, pulse_sink)
+
+    threading.Thread(target=run, name="tx-pulse-prepare", daemon=True).start()
+
+
 def _reopen_tx_pulse_output(state: dict) -> Optional[subprocess.Popen]:
     pulse_sink = str(state.get("pulse_sink") or "").strip()
     if not pulse_sink:
@@ -1131,6 +1198,7 @@ def _reopen_tx_pulse_output(state: dict) -> Optional[subprocess.Popen]:
         stdin=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
     )
+    _shrink_tx_pipe(stream_out)
     _prepare_tx_pulse_sink_input(stream_out, pulse_sink)
     state["stream_out"] = stream_out
     return stream_out
@@ -1444,9 +1512,10 @@ def _linux_process_rx_frame(state: dict) -> None:
     web_data = dsp_filters.process_rx_ctx("web", web_data, radio_rate, radio_channels, frame_size)
     # Digi decoders use a clean branch before user volume/gain controls.
     _push_rx_raw_digi(web_data, radio_channels)
-    # El volumen del oyente remoto es WEB_RX_GAIN (más abajo), no
-    # volumen_rx: ese es el dial de la consola, la ruta de audio local del
-    # PC — independiente de lo que escuche el navegador.
+    # El volumen del oyente remoto es WEB_RX_GAIN (más abajo), no volumen_rx:
+    # ese es el dial de la CONSOLA (ruta de audio local del PC), y aplicarlo
+    # aquí además dejaba el volumen remoto silenciosamente acotado por lo
+    # que tuviera puesto el dial local, aunque nadie lo estuviera usando.
     if gain_mode == "auto":
         web_data = _aplicar_auto_gain(web_data)
     if gain_mode == "manual":
@@ -1536,7 +1605,8 @@ def _linux_open_tx_streams(pa):
                     label=input_label,
                 )
         _trace(f"Abriendo TX output pulse: {pulse_sink} rate={microfono_radio_framerate} channels={actual_microfono_radio_channels}")
-        _prepare_tx_pulse_sink(pulse_sink)
+        if not _remote_mode:
+            _prepare_tx_pulse_sink(pulse_sink)
         stream_out = subprocess.Popen(
             [
                 "pacat",
@@ -1551,7 +1621,11 @@ def _linux_open_tx_streams(pa):
             stdin=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
         )
-        _prepare_tx_pulse_sink_input(stream_out, pulse_sink)
+        _shrink_tx_pipe(stream_out)
+        if _remote_mode:
+            _prepare_tx_pulse_output_async(stream_out, pulse_sink)
+        else:
+            _prepare_tx_pulse_sink_input(stream_out, pulse_sink)
         _trace("TX output abierto")
     else:
         stream_in = None
@@ -1766,7 +1840,7 @@ def _linux_close_runtime_state(state: dict | None) -> None:
 
 
 def _linux_audio_worker() -> None:
-    global _audio_worker_thread
+    global _audio_worker_thread, _audio_reopen_requested
     pa = create_pyaudio(pyaudio)
     current_mode = "idle"
     state = None
@@ -1776,20 +1850,29 @@ def _linux_audio_worker() -> None:
             with _state_lock:
                 stop = _audio_worker_stop
                 target_mode = "idle" if not audio_habilitado else _audio_requested_mode
+                reopen = _audio_reopen_requested
+                _audio_reopen_requested = False
             if stop:
                 break
 
-            if target_mode != current_mode:
-                # Este cambio de modo (rx<->tx, el que dispara cada PTT)
-                # cierra el subproceso parec/pacat en marcha y abre uno
-                # nuevo para el modo destino: un cierre con
+            if target_mode != current_mode or (reopen and target_mode != "idle"):
+                # Diagnóstico: este cambio de modo (rx<->tx, el que dispara
+                # cada PTT) cierra el subproceso parec/pacat en marcha y
+                # abre uno nuevo para el modo destino — un cierre con
                 # SIGTERM+wait(timeout=0.5) seguido de un `Popen` nuevo que
                 # tiene que renegociar con PulseAudio desde cero, no un
-                # simple cambio de una bandera en memoria.
+                # simple cambio de una bandera en memoria. Medido para
+                # confirmar (o descartar) cuánto de "tarda en
+                # estabilizarse" es este cambio de verdad, no solo el
+                # buffer de audio por encima.
+                _mode_switch_from = current_mode
+                _mode_switch_t0 = time.time()
                 _linux_close_runtime_state(state)
+                _close_elapsed = time.time() - _mode_switch_t0
                 state = None
                 current_mode = "idle"
                 _set_mode_flags("idle")
+                _open_t0 = time.time()
                 if target_mode == "rx":
                     try:
                         state = _linux_open_rx_streams(pa)
@@ -1806,6 +1889,12 @@ def _linux_audio_worker() -> None:
                         print(f"Exception abriendo TX: {exc}")
                         state = None
                         current_mode = "idle"
+                _open_elapsed = time.time() - _open_t0
+                _rx_capture_log(
+                    f"mode_switch {_mode_switch_from}->{target_mode} "
+                    f"close_s={_close_elapsed:.3f} open_s={_open_elapsed:.3f} "
+                    f"total_s={(time.time() - _mode_switch_t0):.3f}"
+                )
                 _set_mode_flags(current_mode)
 
             if current_mode == "idle" or state is None:
@@ -1865,6 +1954,22 @@ def _request_linux_audio_mode(mode: str) -> None:
     _audio_worker_event.set()
 
 
+def _request_linux_audio_reopen() -> None:
+    """Reabre los streams del modo en curso del trabajador Linux.
+
+    El trabajador solo reabre al cambiar de modo, y pedir "idle" y enseguida
+    el mismo modo no basta: las dos peticiones llegan antes de que mire y no ve
+    ningún cambio. Así, al entrar en modo remoto la captura RX seguía con la
+    latencia y el bloque del modo local (70 ms, 30 ms): llegaba a ráfagas y el
+    remoto sumaba ~50 ms de cola (medido con scripts/bench_remoto.py).
+    """
+    global _audio_reopen_requested
+    with _state_lock:
+        _audio_reopen_requested = True
+    _ensure_linux_audio_worker()
+    _audio_worker_event.set()
+
+
 def set_remote_mode(enabled: bool) -> None:
     """Disable local monitor/mic while keeping radio I/O for WebRTC."""
     global _remote_mode
@@ -1885,15 +1990,17 @@ def set_remote_mode(enabled: bool) -> None:
 
     # When switching modes, restart RX to apply frame size changes.
     if was_rx and not was_tx:
-        _detener_rx_only()
-        if audio_habilitado:
-            activar_rx()
+        if _linux_audio_runtime:
+            if audio_habilitado:
+                _request_linux_audio_reopen()
+        else:
+            _detener_rx_only()
+            if audio_habilitado:
+                activar_rx()
     elif was_tx and audio_habilitado:
         # Re-arm TX path so input source follows the new remote/local mode.
-        # Linux worker only reopens streams on mode transitions, so force idle->tx.
         if _linux_audio_runtime:
-            _request_linux_audio_mode("idle")
-            _request_linux_audio_mode("tx")
+            _request_linux_audio_reopen()
         else:
             _detener_tx_only()
             activar_tx()
@@ -2035,10 +2142,10 @@ def inject_tx_audio(samples: np.ndarray, sample_rate: int) -> None:
 
 def tx_inject_pending_samples() -> int:
     """Muestras inyectadas que el bucle TX aún no ha enviado a la tarjeta.
-    Lo usa un modo digital (RTTY) para no soltar el PTT antes de que suene
-    todo el mensaje: el bucle TX arranca ~0.1-0.5 s después del PTT (reabre
-    el proceso de audio en cada cambio RX->TX), así que un cálculo por reloj
-    se quedaba corto y cortaba el último carácter."""
+    Lo usa el RTTY para no soltar el PTT antes de que suene todo el mensaje:
+    el bucle TX arranca ~0.1-0.5 s después del PTT (reabre el proceso de
+    audio en cada cambio RX->TX), así que un cálculo por reloj se quedaba
+    corto y cortaba el último carácter."""
     with _tx_inject_lock:
         pending = sum(int(chunk.shape[0]) for chunk, _rate in _tx_inject_buffer)
         if _tx_inject_pending is not None:
@@ -2050,10 +2157,12 @@ def clear_tx_inject_buffer() -> None:
     """Limpia la cola de audio TX inyectado (WebRTC) para evitar audio viejo."""
     global _tx_inject_last_chunk, _tx_inject_last_time
     global _tx_inject_pending, _tx_inject_pending_rate
+    global _tx_inject_primed
     with _tx_inject_lock:
         _tx_inject_buffer.clear()
         _tx_inject_pending = None
         _tx_inject_pending_rate = _tx_inject_rate
+        _tx_inject_primed = False
     _tx_inject_last_chunk = None
     _tx_inject_last_time = 0.0
 
@@ -2063,8 +2172,32 @@ def _pop_tx_inject(target_rate: int, frame_size: int) -> Optional[np.ndarray]:
     global _tx_inject_last_chunk, _tx_inject_last_time
     global _tx_inject_pending, _tx_inject_pending_rate
 
+    global _tx_inject_primed, _tx_inject_dropped_ms
+
     now = time.time()
+    remote_voice = _remote_mode and not _tx_digi_inject_active and not _tx_tone_active
     with _tx_inject_lock:
+        if remote_voice:
+            # Colchón y techo de la voz remota, medidos en lo que hay en cola.
+            rate = float(_tx_inject_rate or target_rate or 48000)
+            queued = sum(int(c[0].shape[0]) for c in _tx_inject_buffer)
+            if _tx_inject_pending is not None:
+                queued += int(_tx_inject_pending.shape[0])
+            queued_ms = queued * 1000.0 / rate
+            if queued_ms > REMOTE_TX_MAX_MS:
+                # Llegó una ráfaga: se tira lo más antiguo hasta volver al colchón
+                # (si no, el retraso se queda instalado para siempre).
+                _tx_inject_pending = None
+                target_ms = REMOTE_TX_BUFFER_MS + 20
+                while _tx_inject_buffer and queued_ms > target_ms:
+                    old, old_rate = _tx_inject_buffer.popleft()
+                    dropped = int(old.shape[0]) * 1000.0 / float(old_rate or rate)
+                    queued_ms -= dropped
+                    _tx_inject_dropped_ms += dropped
+            if not _tx_inject_primed:
+                if queued_ms < REMOTE_TX_BUFFER_MS:
+                    return None  # aún llenando el colchón: silencio, sin repetir nada
+                _tx_inject_primed = True
         pending = _tx_inject_pending
         pending_rate = _tx_inject_pending_rate
         _tx_inject_pending = None
@@ -2082,6 +2215,8 @@ def _pop_tx_inject(target_rate: int, frame_size: int) -> Optional[np.ndarray]:
         if _tx_inject_last_chunk is not None:
             if (now - float(_tx_inject_last_time or 0.0)) <= 0.03:
                 return _tx_inject_last_chunk.copy()
+        if remote_voice:
+            _tx_inject_primed = False  # se vació: volver a llenar el colchón
         if _remote_mode and tx_activo:
             if now - _tx_inject_last_warn > 3.0:
                 _tx_inject_last_warn = now
@@ -2271,15 +2406,42 @@ def rx_audio_stream():
             frame_size,
             config=config,
         )
-    # Esta lectura es bloqueante: si `stream_in.read()` tarda mucho más de
-    # lo que le corresponde a un chunk de `frame_size` muestras a
-    # `altavoz_radio_framerate` Hz, deja de producir audio para todo lo que
-    # depende de este bucle (incluido `_push_rx_raw_web`) sin lanzar
-    # ninguna excepción por el camino — no queda ningún rastro salvo el
-    # propio hueco de audio.
+    # Diagnóstico del lectura bloqueante: el "tarda en estabilizarse" real que
+    # se observó en el panel web al cambiar entre TX/RX (~24 s de
+    # `webrtc_rx_diag` con el 100% de los frames en underrun, sin ningún
+    # `/api/ptt` de por medio) coincide con la lectura de este bucle
+    # quedándose bloqueada mucho más de lo que le corresponde a un chunk de
+    # `frame_size` muestras a `altavoz_radio_framerate` Hz — un chunk de
+    # 20 ms tardando varios segundos en volver de `stream_in.read()` deja de
+    # producir audio para todo lo que depende de este bucle (incluido
+    # `_push_rx_raw_web`) sin lanzar ninguna excepción por el camino, así que
+    # no queda rastro salvo el propio hueco. Se mide cada lectura y se avisa
+    # de inmediato si tarda mucho más de lo esperado, para confirmar (o
+    # descartar) esta hipótesis con datos reales de la próxima sesión.
+    _rx_expected_read_s = frame_size / float(altavoz_radio_framerate or 48000)
+    _rx_read_diag = {"stalls": 0, "max_s": 0.0, "logged_at": 0.0}
     try:
         while rx_activo:
+            _rx_read_t0 = time.time()
             data = stream_in.read(frame_size, exception_on_overflow=False)
+            _rx_read_elapsed = time.time() - _rx_read_t0
+            if _rx_read_elapsed > _rx_expected_read_s * 5:
+                _rx_read_diag["stalls"] += 1
+                _rx_read_diag["max_s"] = max(_rx_read_diag["max_s"], _rx_read_elapsed)
+                _rx_capture_log(
+                    f"STALL lectura bloqueante: {_rx_read_elapsed:.3f}s "
+                    f"(esperado ~{_rx_expected_read_s:.3f}s) device={rx_input_index}"
+                )
+            _rx_now = time.time()
+            if _rx_now - _rx_read_diag["logged_at"] > 10.0:
+                _rx_read_diag["logged_at"] = _rx_now
+                if _rx_read_diag["stalls"]:
+                    _rx_capture_log(
+                        f"resumen 10s: stalls={_rx_read_diag['stalls']} "
+                        f"max={_rx_read_diag['max_s']:.3f}s"
+                    )
+                    _rx_read_diag["stalls"] = 0
+                    _rx_read_diag["max_s"] = 0.0
             # Quick exit check after blocking read for instant PTT response
             if not rx_activo:
                 break
@@ -2874,8 +3036,10 @@ def set_volumen_rx(value):
 def set_web_rx_gain(value):
     """Ganancia del audio RX que se manda al navegador por WebRTC (0.0-1.0
     lineal, no 0-100 como ``set_volumen_rx``: así llega ya el slider web).
-    Independiente de ``volumen_rx`` (el de la ruta de audio local de la
-    consola), que no afecta en nada a lo que oye el navegador."""
+    Antes ``WEB_RX_GAIN`` solo se leía una vez de config.json al importar el
+    módulo y no tenía setter; el slider de la web movía en su lugar
+    ``volumen_rx`` (el de la ruta de audio local de la consola), que no
+    afecta en nada a lo que oye el navegador."""
     global WEB_RX_GAIN
     WEB_RX_GAIN = max(0.0, float(value))
 
@@ -4033,9 +4197,10 @@ def _sdr_capture_loop(loop_generation: int) -> None:
                             context="sdr_web",
                             # El volumen del oyente remoto es WEB_RX_GAIN, no
                             # _sdr_volume (el dial de la consola en modo SDR,
-                            # ruta de audio local del PC) — independiente de
-                            # lo que oiga el navegador, igual que en la ruta
-                            # de radio/CAT con volumen_rx.
+                            # ruta de audio local del PC): pasar _sdr_volume
+                            # aquí dejaba el audio remoto silenciosamente
+                            # acotado por ese dial, igual que le pasaba a
+                            # volumen_rx en la ruta de radio/CAT.
                             volume=1.0,
                             apply_user_gain=False,
                         )

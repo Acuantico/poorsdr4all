@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import contextlib
+import contextvars
 import hashlib
 import hmac
 import ipaddress
@@ -47,6 +48,111 @@ except Exception:
     RTCIceServer = None
     av = None
     np = None
+
+# Búfer de jitter de audio directo (mismo arreglo que en IRCB Pro): el de aiortc
+# retiene 4 paquetes (80 ms) y, si se pierde uno, se atasca hasta 16 (320 ms)
+# sin recuperar luego el retraso. Aquí cada paquete se entrega al llegar
+# (descartando duplicados y atrasados); el jitter lo absorbe el colchón acotado
+# de la voz remota en audio.py (REMOTE_TX_BUFFER_MS / REMOTE_TX_MAX_MS).
+try:
+    import aiortc.rtcrtpreceiver as _aiortc_receiver
+    from aiortc.jitterbuffer import JitterBuffer as _JitterBufferOriginal
+    from aiortc.jitterbuffer import JitterFrame as _JitterFrame
+    from aiortc.jitterbuffer import uint16_add as _uint16_add
+
+    class _DirectAudioJitterBuffer:
+        def __init__(self, capacity: int = 16, prefetch: int = 0, is_video: bool = False):
+            self._capacity = capacity
+            self._last = None
+            self._late = 0
+
+        @property
+        def capacity(self) -> int:
+            return self._capacity
+
+        def add(self, packet):
+            sn = packet.sequence_number
+            if self._last is not None:
+                delta = _uint16_add(sn, -self._last)
+                if delta == 0:
+                    return False, None
+                if delta >= 0x8000:
+                    self._late += 1
+                    if self._late < 50:
+                        return False, None
+                    # Muchos "atrasados" seguidos: la numeración se reinició.
+            self._late = 0
+            self._last = sn
+            return False, _JitterFrame(data=packet._data, timestamp=packet.timestamp)
+
+    def _jitter_buffer_factory(capacity, prefetch=0, is_video=False):
+        if is_video:
+            return _JitterBufferOriginal(capacity=capacity, prefetch=prefetch, is_video=True)
+        return _DirectAudioJitterBuffer(capacity)
+
+    _aiortc_receiver.JitterBuffer = _jitter_buffer_factory
+except Exception:  # aiortc ausente o con otra estructura interna: se deja el original
+    pass
+
+# Audio WebRTC por la VPN (vpn.py, mismo arreglo que IRCB Pro): si el navegador
+# entra por el túnel (https://10.9.0.1:puerto), el audio también debe ir por
+# dentro. Se ofrece un único candidato ICE en 127.0.0.1, en un puerto fijo que
+# el ayudante WireGuard reenvía desde la IP del túnel, y en la respuesta SDP se
+# anuncia esa IP. Sin esto el audio intentaría salir por fuera del túnel.
+_TUNNEL_MODE = contextvars.ContextVar("poorsdr_audio_via_tunnel", default=False)
+try:
+    from vpn import AUDIO_PORTS as _TUNNEL_AUDIO_PORTS
+    from vpn import SERVER_IP as _TUNNEL_IP
+except Exception:  # sin vpn.py
+    _TUNNEL_AUDIO_PORTS = tuple(range(51840, 51850))
+    _TUNNEL_IP = "10.9.0.1"
+
+try:
+    import aioice.ice as _aioice_ice
+    import aiortc.rtcicetransport as _aiortc_ice
+
+    class _TunnelIceConnection(_aioice_ice.Connection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._via_tunnel = _TUNNEL_MODE.get()
+
+        async def get_component_candidates(self, component, addresses, timeout=5):
+            if not self._via_tunnel:
+                return await super().get_component_candidates(component, addresses, timeout)
+            loop = asyncio.get_event_loop()
+            for port in _TUNNEL_AUDIO_PORTS:
+                try:
+                    _transport, protocol = await loop.create_datagram_endpoint(
+                        lambda: _aioice_ice.StunProtocol(self), local_addr=("127.0.0.1", port)
+                    )
+                except OSError:
+                    continue  # puerto ocupado por una sesión anterior que aún se cierra
+                candidate = _aioice_ice.Candidate(
+                    foundation=_aioice_ice.candidate_foundation("host", "udp", "127.0.0.1"),
+                    component=component,
+                    transport="udp",
+                    priority=_aioice_ice.candidate_priority(component, "host"),
+                    host="127.0.0.1",
+                    port=port,
+                    type="host",
+                )
+                protocol.local_candidate = candidate
+                self._protocols.append(protocol)
+                return [candidate]
+            raise ConnectionError("No quedan puertos libres para el audio por la VPN")
+
+    _aiortc_ice.Connection = _TunnelIceConnection
+except Exception:  # aiortc/aioice ausentes o con otra estructura interna
+    pass
+
+
+def _request_via_tunnel(request) -> bool:
+    """True si el navegador entró por la VPN (https://10.9.0.1:puerto)."""
+    try:
+        host = str(request.headers.get("host") or "")
+        return host.rsplit(":", 1)[0].strip("[]") == _TUNNEL_IP
+    except Exception:
+        return False
 
 try:
     from cryptography import x509
@@ -406,10 +512,11 @@ class RxAudioTrack(MediaStreamTrack):
     AUDIO_SCALE_DIVISOR = 32768.0
     AUDIO_SCALE_THRESHOLD = 1.5
     AUDIO_MAX_ABS_THRESHOLD = 2.0
-    # Duración de la rampa al entrar/salir de un hueco de silencio (por
-    # underrun o por PTT): un salto brusco entre audio real y silencio se
-    # oye como un chasquido. 5 ms suaviza la transición sin sonar como un
-    # tono o vibrato aparte.
+    # Duración de la rampa al entrar/salir de un hueco de silencio (underrun
+    # o PTT): saltar en seco de audio real a silencio (o al revés) es un
+    # escalón brusco en la forma de onda — exactamente lo que se oye como
+    # "petardeo"/chasquido, sea cual sea la causa del hueco. 5 ms es
+    # audible como transición pero no como un tono/warble aparte.
     _FADE_SAMPLES = 240
     # Frames reales consecutivos que hay que confirmar tras soltar PTT antes
     # de servirlos de verdad — ver el comentario junto a _ptt_recovering en
@@ -434,9 +541,24 @@ class RxAudioTrack(MediaStreamTrack):
         # Keep polling tight to reduce jitter/latency on LAN/mobile.
         self._poll_slice = 0.002
         self._max_wait_for_chunk = 0.025
+        # Diagnóstico incondicional (no depende del aviso "WARN: ... > 2 en
+        # 10 s", que puede no dispararse nunca con huecos ya audibles: un
+        # frame de 20 ms en silencio de vez en cuando ya suena como un
+        # "tirón", y podía quedarse por debajo de ese umbral sin avisar
+        # nunca). Escribe cada ~2 s en web_server_requests.log cuántos
+        # frames se sirvieron de verdad frente a cuántos se rellenaron con
+        # silencio, para poder diagnosticar sin depender de pegar la
+        # consola a mano.
+        self._diag_frames = 0
+        self._diag_underruns = 0
+        self._diag_log_at = 0.0
         # Reloj de tiempo real propio del track: ver el comentario junto al
         # `await asyncio.sleep(wait)` al final de recv().
         self._clock_start: Optional[float] = None
+        # Alineación de ese reloj con la captura: ver _align_clock().
+        self._chunk_age: Optional[float] = None
+        self._age_min = 1.0
+        self._age_frames = 0
         # Declick: ver el comentario junto a _FADE_SAMPLES en recv(). Guarda
         # la última muestra real servida y si el frame anterior fue relleno
         # de silencio (underrun o PTT), para poder atenuar/recuperar en
@@ -444,16 +566,20 @@ class RxAudioTrack(MediaStreamTrack):
         self._last_sample = 0.0
         self._prev_frame_was_silence = False
         # Cada conexión WebRTC tiene su propia cola RX en audio_remote (ver
-        # el comentario al principio de audio_remote.py): así, dos oyentes
-        # conectados a la vez no compiten por vaciar el mismo buffer. El
-        # handler de `connectionstatechange` en `webrtc_offer` debe llamar
-        # a `audio_remote.unregister_listener` con este id al cerrar la
-        # conexión, para no dejar la cola huérfana en el registro.
+        # el comentario al principio de audio_remote.py): antes todos los
+        # oyentes competían por vaciar el mismo buffer compartido, y con dos
+        # conexiones a la vez (confirmado en real: el mismo operador desde
+        # el móvil y el escritorio) cada una se quedaba con ~35-40% de sus
+        # frames en underrun de forma sostenida, no puntual. El que cierre
+        # esta conexión (el handler de `connectionstatechange` en
+        # `webrtc_offer`) debe llamar a `audio_remote.unregister_listener`
+        # con este id — si no, la cola queda huérfana en el registro.
         self._listener_id = audio_remote.register_listener()
         # Ver el comentario junto a _PTT_RECOVERY_TARGET y la rama de
         # recuperación en recv().
         self._ptt_recovering = False
         self._ptt_recovery_hits = 0
+        self._silence_was_ptt = False
 
     def _normalize_samples(self, samples: np.ndarray, src_rate: int, target_rate: int) -> np.ndarray:
         samples = np.asarray(samples, dtype=np.float32).flatten()
@@ -480,8 +606,17 @@ class RxAudioTrack(MediaStreamTrack):
             src_rate = target_rate
             if samples is not None:
                 self._last_remote_chunk_at = time.time()
-            # Si el buffer dedicado está vacío, se prueba de inmediato el
-            # buffer heredado como respaldo: un cambio ocasional de fuente
+                self._chunk_age = audio_remote.last_rx_age(self._listener_id)
+            # Antes, si el buffer remoto estaba vacío pero había dado datos
+            # hacía menos de 300 ms, se devolvía None sin más — ni siquiera se
+            # probaba el buffer heredado — "para no alternar entre fuentes en
+            # huecos breves". En la práctica eso convertía CUALQUIER hueco
+            # momentáneo del buffer remoto en ~300 ms garantizados de
+            # silencio (unos 15 frames de 20 ms, uno tras otro), en vez de
+            # aprovechar el dato que sí pudiera tener el buffer heredado en
+            # ese instante. Confirmado en real: RX a pulsos ("partes bien y
+            # partes vacías") con "WebRTC RX RMS: 0.0000" repetido varias
+            # veces seguidas nada más conectar. Un cambio de fuente ocasional
             # es mucho menos audible que un hueco de silencio garantizado.
         if samples is None:
             try:
@@ -520,6 +655,7 @@ class RxAudioTrack(MediaStreamTrack):
                     break
             if samples is None:
                 break
+        self._diag_frames += 1
         if audio_remote.is_active() and audio_remote.get_ptt_state():
             chunk = np.zeros(self.samples_per_frame, dtype=np.float32)
             # Declick: la primera vez que entra PTT, atenúa en rampa desde
@@ -531,15 +667,21 @@ class RxAudioTrack(MediaStreamTrack):
                 )
             self._buffer = None
             self._prev_frame_was_silence = True
-            # Salir de PTT es un arranque en frío: audio_remote.set_ptt(False)
-            # vacía la cola de este oyente, así que hay que rellenarla desde
-            # cero. Confirmar unos pocos frames reales seguidos antes de
-            # servirlos evita alternar entre silencio y audio real a cada
-            # frame si el primer chunk llega aislado (probable justo cuando
-            # la captura acaba de reanudar) en vez de dar una única
-            # transición limpia.
+            # Salir de PTT es un "arranque en frío" a propósito:
+            # audio_remote.set_ptt(False) vacía la cola de este oyente, así
+            # que justo después hay que rellenarla desde cero otra vez. Sin
+            # esta marca, en cuanto llegara el primer chunk real se serviría
+            # ya mismo — y si el segundo chunk todavía no está listo (muy
+            # probable, la captura acaba de arrancar a rellenar), el
+            # siguiente frame volvía a underrun, luego otro real, luego
+            # underrun... Cada transición individual ya lleva su rampa (no
+            # es un clic seco), pero varias seguidas en un segundo suenan a
+            # "pa, pa, pa" (como un motor renqueando) en vez de un solo
+            # corte limpio. Confirmar unos pocos frames reales seguidos
+            # antes de fiarse evita esa alternancia.
             self._ptt_recovering = True
             self._ptt_recovery_hits = 0
+            self._silence_was_ptt = True
         elif (
             self._ptt_recovering
             and self._buffer is not None
@@ -558,11 +700,14 @@ class RxAudioTrack(MediaStreamTrack):
                 self._ptt_recovering = False
         elif self._buffer is None or self._buffer.size < self.samples_per_frame:
             self._underrun_count += 1
+            self._diag_underruns += 1
             if self._ptt_recovering:
                 # Racha rota: hay que volver a confirmar desde cero antes de
                 # servir audio real, en vez de arrastrar una cuenta que ya
                 # no refleja un flujo estable.
                 self._ptt_recovery_hits = 0
+            else:
+                self._silence_was_ptt = False
             chunk = self._buffer if self._buffer is not None else np.zeros(0, dtype=np.float32)
             have = chunk.size
             if have < self.samples_per_frame:
@@ -602,13 +747,26 @@ class RxAudioTrack(MediaStreamTrack):
                         0.0, 1.0, fade_len, endpoint=False, dtype=np.float32
                     )
             self._prev_frame_was_silence = False
+            self._silence_was_ptt = False
             self._ptt_recovering = False
             self._ptt_recovery_hits = 0
             self._last_audio_time = time.time()
+            self._align_clock()
             if self._underrun_count > 0:
                 self._underrun_count = 0
         self._last_sample = float(chunk[-1]) if chunk.size else self._last_sample
         out = (np.clip(chunk, -1.0, 1.0) * 32767.0).astype(np.int16)
+        diag_now = time.time()
+        if diag_now - self._diag_log_at > 2.0:
+            self._diag_log_at = diag_now
+            if self._diag_frames > 0:
+                _append_web_request_log(
+                    f"ts={int(diag_now)} media=webrtc_rx_diag "
+                    f"frames={self._diag_frames} underruns={self._diag_underruns} "
+                    f"rms={self._last_rms:.4f}"
+                )
+            self._diag_frames = 0
+            self._diag_underruns = 0
         frame = av.AudioFrame(format="s16", layout="mono", samples=self.samples_per_frame)
         frame.planes[0].update(out.tobytes())
         frame.sample_rate = self.sample_rate
@@ -630,15 +788,26 @@ class RxAudioTrack(MediaStreamTrack):
             # Reset timer to avoid spam
             self._last_data_time = time.time()
 
-        # aiortc no impone ningún pacing de tiempo real sobre un track
-        # "pull" como este: vuelve a llamar a recv() en cuanto esta
-        # corrutina devuelve, sin esperar a que transcurran los 20 ms que
-        # el pts del frame dice representar. Cada recv() cuenta como 20 ms
-        # de audio en el pts del paquete RTP, así que hay que autopacearse
-        # explícitamente aquí — como hace cualquier fuente de audio
-        # sintética en aiortc (a diferencia de un `MediaPlayer`, que ya
-        # trae su propio hilo de decodificación paceado) — para no
-        # producir frames más rápido de lo que representan en tiempo real.
+        # El comentario que había aquí ("aiortc pacing already controls
+        # outbound RTP timing") era falso: aiortc llama a recv() otra vez en
+        # cuanto esta corrutina devuelve, sin esperar a que transcurran los
+        # 20 ms que el pts del frame dice que representa — no hay ningún
+        # pacing de tiempo real por su parte para un track "pull" como este.
+        # Confirmado con el diagnóstico `webrtc_rx_diag` en real: recv() se
+        # invocaba ~140-178 veces cada 2 s (debería ser ~100, un frame de
+        # 20 ms), es decir, a ritmo real de ~11-14 ms/frame en vez de 20 —
+        # casi el doble de rápido de lo que representa el audio que se envía.
+        # Esto vaciaba el buffer compartido de audio_remote/legacy más rápido
+        # de lo que la captura real podía rellenarlo, y eso — no la ganancia
+        # ni la tasa de muestreo — era la causa de los huecos/"relentizado":
+        # cada recv() cuenta como 20 ms de audio en el pts que lleva el
+        # paquete RTP, así que producir frames más rápido que cada 20 ms de
+        # reloj real equivale a intentar transmitir el audio a una velocidad
+        # de reproducción mayor que 1x, sin que exista tanto audio real que
+        # transmitir a ese ritmo. Todos los ejemplos de aiortc con una fuente
+        # de audio sintética (no un `MediaPlayer` con su propio hilo de
+        # decodificación) se autopacean así, así que este track pull-based
+        # necesitaba hacer lo mismo.
         if self._clock_start is None:
             self._clock_start = time.time() - (self._pts - self.samples_per_frame) / self.sample_rate
         target = self._clock_start + self._pts / self.sample_rate
@@ -646,6 +815,200 @@ class RxAudioTrack(MediaStreamTrack):
         if wait > 0:
             await asyncio.sleep(wait)
         return frame
+
+    # Margen que se deja entre la llegada de un bloque y su recogida.
+    _ALIGN_MARGIN_S = 0.002
+    _ALIGN_WINDOW = 50  # ~1 s de frames
+
+    def _align_clock(self) -> None:
+        """Pone la recogida justo detrás de la captura.
+
+        El reloj propio de recv() arranca con una fase cualquiera respecto a
+        la captura, y cada bloque esperaba en la cola hasta ~20 ms a que
+        recv() pasara a por él (medido: ~26 ms de media con
+        scripts/bench_remoto.py). Si en ``_ALIGN_WINDOW`` frames hasta el
+        bloque más fresco ya llevaba esperando más del margen, el reloj se
+        adelanta esa diferencia. Pasarse no corta nada: si el bloque aún no
+        ha llegado, recv() lo espera como siempre.
+        """
+        age, self._chunk_age = self._chunk_age, None
+        if age is None or self._clock_start is None:
+            return
+        self._age_min = min(self._age_min, age)
+        self._age_frames += 1
+        if self._age_frames >= self._ALIGN_WINDOW:
+            if self._age_min > 2 * self._ALIGN_MARGIN_S:
+                self._clock_start -= self._age_min - self._ALIGN_MARGIN_S
+            self._age_min, self._age_frames = 1.0, 0
+
+
+
+class RemotePttControl:
+    """Única autoridad sobre el PTT que piden los clientes web (como en IRCB Pro).
+
+    Cada pulsación de la web lleva un número creciente ``n``. Mientras el
+    operador está en TX la página repite la orden como latido: cada 100 ms por
+    el canal de datos WebRTC ``ptt`` (``P1:<n>``), o cada 250 ms por
+    ``/api/ptt`` si el canal aún no está abierto. Si dejan de llegar latidos
+    (red caída, pestaña cerrada, móvil bloqueado...) el PTT se suelta solo a los
+    ``REMOTE_PTT_DEADMAN_MS``; además hay un tope de TX continua
+    (``REMOTE_PTT_MAX_S``). Una pulsación soltada (a mano o a la fuerza) queda
+    cerrada: un latido suyo que llegue tarde ya no vuelve a transmitir.
+
+    Al soltar se mantiene una cola corta (``REMOTE_PTT_TAIL_MS``) para que salga
+    por la radio el final de la voz que aún viene de camino.
+    """
+
+    WATCH_PERIOD_S = 0.05
+
+    def __init__(self, controller: "WebServerController", config: Dict[str, Any]):
+        self._ctl = controller
+        cfg = config or {}
+        self.tail_s = max(0, int(cfg.get("REMOTE_PTT_TAIL_MS", 150) or 0)) / 1000.0
+        self.deadman_s = max(250, int(cfg.get("REMOTE_PTT_DEADMAN_MS", 700) or 700)) / 1000.0
+        self.max_tx_s = max(10, int(cfg.get("REMOTE_PTT_MAX_S", 300) or 300))
+        self.active = False
+        self._client: Optional[str] = None  # sesión web que tiene el PTT
+        self._press: Optional[int] = None   # número de su pulsación
+        self._link: Optional[str] = None    # conexión WebRTC que lleva sus latidos
+        self._ended: Dict[str, int] = {}    # por sesión: última pulsación cerrada
+        self._last_beat = 0.0
+        self._since = 0.0
+        self._release_task: Optional[asyncio.Task] = None
+        self._watcher: Optional[asyncio.Task] = None
+        self._lock = asyncio.Lock()
+
+    def releasing(self) -> bool:
+        return self._release_task is not None and not self._release_task.done()
+
+    def _close_press(self) -> None:
+        if self._client is not None and self._press is not None:
+            self._ended[self._client] = max(self._press, self._ended.get(self._client, -1))
+
+    async def request(self, on: bool, client: str, press: Optional[int] = None, link: Optional[str] = None) -> None:
+        """Orden o latido de la sesión ``client`` para su pulsación ``press``."""
+        if press is not None and press <= self._ended.get(client, -1):
+            return  # pulsación ya cerrada (o una orden vieja que llega tarde)
+        if not on:
+            if press is not None:
+                self._ended[client] = max(press, self._ended.get(client, -1))
+            if self.active and not self.releasing():
+                self._release_task = asyncio.ensure_future(self._release("soltado", tail=True))
+            return
+        if self.active and not self.releasing() and (client, press) != (self._client, self._press):
+            # Otra pulsación mientras ya se transmite: la nueva toma el relevo.
+            self._close_press()
+        self._client, self._press = client, press
+        if link is not None:
+            self._link = link
+        self._last_beat = time.monotonic()
+        if self.releasing():
+            # Se volvió a pulsar mientras salía la cola: se sigue transmitiendo.
+            self._release_task.cancel()
+            self._release_task = None
+            return
+        if not self.active:
+            self.active = True
+            self._since = time.monotonic()
+            if self._watcher is None or self._watcher.done():
+                self._watcher = asyncio.ensure_future(self.watch())
+            await self._apply(True)
+            _append_web_request_log(f"ts={int(time.time())} media=ptt state=on client={client} press={press}")
+
+    def release_now(self, reason: str, link: Optional[str] = None) -> None:
+        """Suelta sin cola (sin latido, tope, conexión perdida, servidor parándose).
+        Con ``link`` solo suelta si los latidos venían por esa conexión WebRTC."""
+        if not self.active or (link is not None and link != self._link):
+            return
+        if self.releasing():
+            self._release_task.cancel()
+        self._close_press()
+        self._release_task = asyncio.ensure_future(self._release(reason, tail=False))
+
+    async def _release(self, reason: str, tail: bool) -> None:
+        if tail and self.tail_s:
+            await asyncio.sleep(self.tail_s)  # aún llega el final de la voz
+        self.active = False
+        self._client = self._press = self._link = None
+        await self._apply(False)
+        _append_web_request_log(f"ts={int(time.time())} media=ptt state=off reason={reason.replace(' ', '_')}")
+
+    async def _apply(self, state: bool) -> None:
+        async with self._lock:
+            ctl = self._ctl
+            try:
+                with ctl._remote_lock:
+                    remote_clients = int(ctl._remote_clients or 0)
+                if remote_clients > 0:
+                    ctl._set_remote_mode(True)
+            except Exception:
+                pass
+            try:
+                if hasattr(audio, "clear_tx_inject_buffer"):
+                    audio.clear_tx_inject_buffer()
+            except Exception:
+                pass
+            # Mutear/desmutear el audio remoto es en memoria: se hace ya, antes de
+            # la E/S de la radio, para que el cambio de sentido se oiga al instante.
+            try:
+                if audio_remote.is_active():
+                    audio_remote.set_ptt(state)
+            except Exception:
+                pass
+            # callbacks.set_ptt llega hasta la E/S serie (CAT), síncrona y
+            # bloqueante: en un hilo, para no frenar el ritmo del audio WebRTC.
+            await asyncio.to_thread(ctl.callbacks.set_ptt, state)
+
+    async def watch(self) -> None:
+        """Vigila los latidos mientras dura la transmisión."""
+        while self.active:
+            await asyncio.sleep(self.WATCH_PERIOD_S)
+            if not self.active or self.releasing():
+                continue
+            now = time.monotonic()
+            silent = now - self._last_beat
+            if silent > self.deadman_s:
+                print(f"PTT remoto: soltado, la web dejó de confirmar el TX ({silent * 1000:.0f} ms)")
+                self.release_now("sin latido")
+            elif now - self._since > self.max_tx_s:
+                print(f"PTT remoto: soltado, superado el tiempo máximo de TX ({self.max_tx_s} s)")
+                self.release_now("tiempo maximo")
+
+    def attach_channel(self, channel, client: str, link: str) -> None:
+        """Canal de datos ``ptt``: 'P1:<n>' TX (y latido), 'P0:<n>' RX, 'T...' eco."""
+
+        @channel.on("message")
+        def on_message(message):
+            if not isinstance(message, str) or not message:
+                return
+            if message[0] == "P":
+                try:
+                    value, press = message[1:].split(":", 1)
+                    press = int(press)
+                except ValueError:
+                    return
+                asyncio.ensure_future(self.request(value == "1", client, press, link))
+            elif message[0] == "T":
+                try:
+                    channel.send(message)  # eco: la web mide la ida y vuelta
+                except Exception:
+                    pass
+
+        @channel.on("close")
+        def on_close():
+            self.release_now("canal de PTT cerrado", link=link)
+
+    def web_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Estado para la web: durante la cola de cierre ya se muestra RX."""
+        if self.releasing() and state.get("ptt"):
+            state = dict(state)
+            state["ptt"] = False
+        return state
+
+
+def _client_key(token: str) -> str:
+    """Identifica la sesión web (la misma por HTTP y por WebRTC) sin guardar el token."""
+    return hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()[:12]
 
 
 class WebServerController:
@@ -664,10 +1027,7 @@ class WebServerController:
         self._login_lock = threading.Lock()
         self._max_failed_attempts = 5
         self._lockout_duration = 300  # 5 minutes in seconds
-        self._ptt_lock = threading.Lock()
-        self._ptt_last_state = False
-        self._ptt_last_ts = 0.0
-        self._ptt_min_hold_s = 0.20
+        self._ptt_ctl: Optional[RemotePttControl] = None
 
     async def _close_all_pcs_async(self, timeout_s: float = 0.6) -> None:
         pcs = list(self._pcs)
@@ -816,6 +1176,12 @@ class WebServerController:
         auto_https = bool(self._config.get("WEB_SERVER_AUTO_HTTPS", True))
         configured_host = str(self._config.get("WEB_SERVER_HOST", "127.0.0.1") or "127.0.0.1")
         host = _normalize_web_bind_host(configured_host, allow_wan)
+        vpn_enabled = bool(self._config.get("WEB_VPN_ENABLED", False))
+        if vpn_enabled:
+            # Con la VPN solo se llega por el túnel (el ayudante reenvía a
+            # 127.0.0.1), salvo que se permita también la red local.
+            allow_wan = False
+            host = "0.0.0.0" if bool(self._config.get("WEB_VPN_ALLOW_LAN", False)) else "127.0.0.1"
         port = int(self._config.get("WEB_SERVER_PORT", 8080) or 8080)
         if not _can_bind(host, port):
             if allow_wan and host != "0.0.0.0" and _can_bind("0.0.0.0", port):
@@ -832,7 +1198,18 @@ class WebServerController:
         cert = str(self._config.get("WEB_SERVER_SSL_CERT", "") or "")
         key = str(self._config.get("WEB_SERVER_SSL_KEY", "") or "")
         external_bind = bool(allow_wan or host == "0.0.0.0")
-        if external_bind and auto_https and (not cert or not key):
+        if vpn_enabled and (not cert or not key):
+            # El micrófono del móvil exige HTTPS: con la VPN siempre, con un
+            # certificado propio que incluye la IP del túnel.
+            ssl_dir = os.path.join(_runtime_data_dir(), "ssl")
+            os.makedirs(ssl_dir, exist_ok=True)
+            cert = os.path.join(ssl_dir, "poorsdr_vpn_cert.pem")
+            key = os.path.join(ssl_dir, "poorsdr_vpn_key.pem")
+            hosts = [_TUNNEL_IP] + _collect_access_hosts(host, configured_host, external_bind)
+            if not _ensure_self_signed_cert(cert, key, hosts):
+                cert = key = ""
+                print("WARN: HTTPS no configurado. El micr\u00f3fono en m\u00f3vil requiere HTTPS.")
+        elif external_bind and auto_https and (not cert or not key):
             ssl_dir = os.path.join(_runtime_data_dir(), "ssl")
             os.makedirs(ssl_dir, exist_ok=True)
             cert = os.path.join(ssl_dir, "poorsdr_cert.pem")
@@ -847,7 +1224,7 @@ class WebServerController:
         elif external_bind and not auto_https and (not cert or not key):
             print("INFO: HTTPS automático desactivado. Sirviendo por HTTP en LAN.")
         access_urls = _format_access_urls(
-            _collect_access_hosts(host, configured_host, external_bind),
+            ([_TUNNEL_IP] if vpn_enabled else []) + _collect_access_hosts(host, configured_host, external_bind),
             port,
             secure=bool(cert and key),
         )
@@ -873,6 +1250,9 @@ class WebServerController:
             host=host,
             port=port,
             log_level="info",
+            # La app no tiene eventos de arranque/parada; con lifespan activo,
+            # stop() (force_exit) dejaba una traza de CancelledError al cerrar.
+            lifespan="off",
             ssl_certfile=cert or None,
             ssl_keyfile=key or None,
         )
@@ -942,6 +1322,8 @@ class WebServerController:
                 self._login_attempts[ip] = [(now, True)]
 
     def _create_app(self) -> FastAPI:
+        ptt_ctl = RemotePttControl(self, self._config)
+        self._ptt_ctl = ptt_ctl
         app = FastAPI()
         webui_path = os.path.join(os.path.dirname(__file__), "webui")
         app.mount("/static", StaticFiles(directory=webui_path), name="static")
@@ -1055,7 +1437,7 @@ class WebServerController:
         @app.get("/api/status")
         async def status(request: Request):
             _require_auth(request)
-            return self.callbacks.get_state()
+            return ptt_ctl.web_state(self.callbacks.get_state())
 
         @app.post("/api/tune")
         async def tune(request: Request, payload: Dict[str, Any] = Body(...)):
@@ -1097,51 +1479,14 @@ class WebServerController:
             _require_auth(request)
             state = bool(payload.get("state", False))
             try:
-                with self._remote_lock:
-                    remote_clients = int(self._remote_clients or 0)
-                if remote_clients > 0:
-                    self._set_remote_mode(True)
-            except Exception:
-                pass
-            now = time.monotonic()
-            applied = False
-            reason = ""
-            with self._ptt_lock:
-                # Ignore duplicate state requests and ultra-fast bounce transitions.
-                if state == bool(self._ptt_last_state):
-                    reason = "duplicate"
-                # Debounce only PTT-ON transitions. PTT-OFF must be immediate to avoid
-                # sticky TX states and muted RX audio on remote clients.
-                elif state and (now - float(self._ptt_last_ts or 0.0)) < float(self._ptt_min_hold_s):
-                    reason = "holdoff"
-                else:
-                    self._ptt_last_state = state
-                    self._ptt_last_ts = now
-                    applied = True
-                    reason = "applied"
-                effective_state = bool(self._ptt_last_state)
-            try:
-                if hasattr(audio, "clear_tx_inject_buffer"):
-                    audio.clear_tx_inject_buffer()
-            except Exception:
-                pass
-            # Mutear/desmutear el audio remoto es una operación en memoria,
-            # sin E/S — se hace ya mismo, antes de tocar el hardware de
-            # abajo, para que el cambio de sentido se oiga instantáneo sin
-            # depender de lo que tarde la radio en confirmar por CAT.
-            if audio_remote.is_active():
-                audio_remote.set_ptt(effective_state)
-            if applied:
-                # self.callbacks.set_ptt(...) llega hasta _vendor/cat.py,
-                # que hace una lectura de puerto serie síncrona y
-                # bloqueante (_send()/_drain_rx_buffer, 60 ms fijos para
-                # consumir el eco/ack del comando). Llamado directamente
-                # aquí bloquearía el mismo bucle de eventos asyncio que
-                # pacea RxAudioTrack.recv() para cada oyente conectado —
-                # se delega a un hilo para que la E/S de la radio nunca
-                # bloquee el pacing del audio.
-                await asyncio.to_thread(self.callbacks.set_ptt, effective_state)
-            return {"ok": True, "applied": bool(applied), "reason": reason}
+                press = int(payload["press"]) if "press" in payload else None
+            except (TypeError, ValueError):
+                press = None
+            # Orden y latido a la vez: mientras la web siga en TX repite
+            # {"state": true, "press": n} cada 250 ms (o usa el canal 'ptt').
+            await ptt_ctl.request(state, _client_key(_get_token_from_request(request)), press)
+            return {"ok": True, "applied": True, "ptt": bool(ptt_ctl.active and not ptt_ctl.releasing()),
+                    "deadman_ms": int(ptt_ctl.deadman_s * 1000)}
 
         @app.post("/api/volume")
         async def volume(request: Request, payload: Dict[str, Any] = Body(...)):
@@ -1204,7 +1549,7 @@ class WebServerController:
                             break
 
                     # Get current state
-                    current_state = self.callbacks.get_state()
+                    current_state = ptt_ctl.web_state(self.callbacks.get_state())
 
                     # Only send if state changed or it's time for periodic update
                     if current_state != last_state or (now - last_state_sent_at) > periodic_state_push:
@@ -1228,6 +1573,8 @@ class WebServerController:
             if RTCPeerConnection is None:
                 raise HTTPException(status_code=500, detail="WebRTC not available")
             t0 = time.time()
+            via_tunnel = _request_via_tunnel(request)
+            _TUNNEL_MODE.set(via_tunnel)
             offer = RTCSessionDescription(sdp=payload["sdp"], type=payload["type"])
             if RTCConfiguration is not None:
                 # Force host-only ICE gathering for LAN to avoid multi-second STUN delays.
@@ -1246,9 +1593,19 @@ class WebServerController:
             # real de todos modos cuando de verdad se ejecuta (siempre después).
             rx_audio_track = None
 
+            pc_link = f"rtc:{id(pc):x}"
+            pc_client = _client_key(_get_token_from_request(request))
+
+            @pc.on("datachannel")
+            def on_datachannel(channel):
+                if getattr(channel, "label", "") == "ptt":
+                    ptt_ctl.attach_channel(channel, pc_client, pc_link)
+
             @pc.on("connectionstatechange")
             async def on_state_change():
                 if pc.connectionState in ("failed", "closed", "disconnected"):
+                    # Sin conexión no hay voz ni latido de quien tenía el PTT.
+                    ptt_ctl.release_now(f"conexion {pc.connectionState}", link=pc_link)
                     # Cancel all background tasks (audio RX + stats logging).
                     for task in rx_tasks:
                         if not task.done():
@@ -1404,8 +1761,9 @@ class WebServerController:
                 )
             except Exception:
                 pass
-            return JSONResponse(
-                {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-            )
+            answer_sdp = pc.localDescription.sdp
+            if via_tunnel:
+                answer_sdp = answer_sdp.replace("127.0.0.1", _TUNNEL_IP)
+            return JSONResponse({"sdp": answer_sdp, "type": pc.localDescription.type})
 
         return app

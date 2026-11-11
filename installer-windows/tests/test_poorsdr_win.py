@@ -311,3 +311,34 @@ def test_sin_empaquetar_no_se_toca_el_camino(monkeypatch, tmp_path):
     antes = list(lp.sys.path)
     lp._preparar_componentes_externos()
     assert lp.sys.path == antes
+
+
+def _inno():
+    return Path(__file__).resolve().parents[1] / "inno"
+
+
+def test_el_instalador_atiende_todos_los_codigos_de_salida_del_script_de_wsl():
+    import re
+
+    ps1 = (_inno() / "preparar-wsl.ps1").read_text(encoding="utf-8")
+    iss = (_inno() / "poorsdr4all.iss").read_text(encoding="utf-8")
+    salidas = {int(n) for n in re.findall(r"\bexit (\d+)", ps1)}
+    assert {0, 1, 10, 20, 21} <= salidas
+    for codigo in (10, 20, 21):
+        assert re.search(rf"^\s*{codigo}:", iss, re.M), f"el instalador no atiende el código {codigo}"
+
+
+def test_aviso_de_virtualizacion_en_cada_idioma_menciona_la_bios_y_la_documentacion():
+    iss = (_inno() / "poorsdr4all.iss").read_text(encoding="utf-8")
+    for idioma, bios, doc in (("es", "BIOS", "documentación"), ("en", "BIOS", "documentation")):
+        linea = next(x for x in iss.splitlines() if x.startswith(f"{idioma}.VirtualizacionNo="))
+        assert bios in linea and doc in linea
+
+
+def test_la_comprobacion_de_virtualizacion_va_antes_de_instalar_nada():
+    ps1 = (_inno() / "preparar-wsl.ps1").read_text(encoding="utf-8")
+    assert ps1.index("exit 21") < ps1.index("Instalando WSL desde GitHub")
+
+
+def test_el_script_de_wsl_lleva_bom_utf8_para_que_powershell_lea_bien_los_acentos():
+    assert (_inno() / "preparar-wsl.ps1").read_bytes().startswith(b"\xef\xbb\xbf")

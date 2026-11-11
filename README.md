@@ -56,7 +56,7 @@ A single `.exe` (Windows 10 version 2004 or later / Windows 11, 64-bit). It
 installs the application, sets up **WSL2** and leaves **OpenWebRX+** running
 inside its own private Linux (Ubuntu 24.04), which is created automatically.
 OpenWebRX+ and the spots start when PoorSDR4All opens and stop when it closes,
-as on Linux. An Internet connection is required: the first time it downloads
+as on Linux. WSL2 needs hardware virtualization (Intel VT-x or AMD-V, enabled in the BIOS/UEFI): the installer checks it first and, if it is not available, installs PoorSDR4All without OpenWebRX+ and explains why. An Internet connection is required: the first time it downloads
 Ubuntu (~370 MB) and builds OpenWebRX+ (20–40 minutes). Optionally it installs
 RTTY Power, the station log book «Libro de guardia» (NMN1M) and USB SDR support.
 It also downloads PyAV (which includes FFmpeg) from PyPI, with its SHA-256 hash
@@ -161,6 +161,12 @@ The web server is disabled by default and does not start without a password and
 a signing secret. Do not expose the CAT, rigctld, OpenWebRX or spiderd ports
 directly to the Internet. See [`SECURITY.md`](SECURITY.md).
 
+To control the radio away from home, PoorSDR4All includes a built-in WireGuard VPN
+(Settings → VPN) that needs no administrator rights and leaves the web panel
+reachable only through the tunnel; remote PTT has a dead-man switch and a
+continuous-TX limit. See [`docs/REMOTO.md`](docs/REMOTO.md) (in Spanish).
+WireGuard is a registered trademark of Jason A. Donenfeld; PoorSDR4All is not affiliated with or endorsed by the WireGuard project.
+
 ## Licenses
 
 The original PoorSDR4All code is offered under the
@@ -239,7 +245,7 @@ variables de entorno y verificación en
 Un solo `.exe` (Windows 10 2004 o posterior / Windows 11, 64 bits). Instala la
 aplicación, prepara **WSL2** y deja **OpenWebRX+** funcionando dentro de un
 Linux propio y privado (Ubuntu 24.04) que se crea solo. OpenWebRX+ y los spots
-arrancan al abrir PoorSDR4All y se detienen al cerrarlo, como en Linux.
+arrancan al abrir PoorSDR4All y se detienen al cerrarlo, como en Linux. WSL2 necesita virtualización por hardware (Intel VT-x o AMD-V, activada en la BIOS/UEFI): el instalador lo comprueba antes y, si no está disponible, instala PoorSDR4All sin OpenWebRX+ y explica el motivo.
 Necesita conexión a Internet: la primera vez descarga Ubuntu (~370 MB) y
 compila OpenWebRX+ (20-40 minutos). Opcionalmente instala RTTY Power, el Libro
 de guardia (NMN1M) y el soporte para SDR por USB. Descarga además, de PyPI y
@@ -342,6 +348,12 @@ La dirección de dependencias es `ui → services → core/config/infra`. Consul
 El servidor web está desactivado por defecto y no arranca sin contraseña y
 secreto de firma. No publiques directamente en Internet los puertos CAT,
 rigctld, OpenWebRX o spiderd. Consulta [`SECURITY.md`](SECURITY.md).
+
+Para manejar la radio desde fuera de casa, PoorSDR4All incluye una VPN WireGuard
+integrada (Ajustes → VPN) que no necesita permisos de administrador y deja el
+panel web accesible solo por el túnel; el PTT remoto tiene "hombre muerto" y
+límite de TX continua. Ver [`docs/REMOTO.md`](docs/REMOTO.md).
+WireGuard es una marca registrada de Jason A. Donenfeld; PoorSDR4All no está afiliado ni respaldado por el proyecto WireGuard.
 
 ## Licencias
 

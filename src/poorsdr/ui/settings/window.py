@@ -38,6 +38,7 @@ from poorsdr.ui.settings.form import (
 from poorsdr.ui.settings.hotkeys_panel import HotkeysEditor
 from poorsdr.ui.settings.plugins_panel import PluginsEditor
 from poorsdr.ui.settings.tooltip import Tooltip
+from poorsdr.ui.settings.vpn_panel import VpnDevicesPanel
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -102,6 +103,11 @@ class SettingsWindow:
                 self._plugins_editor.pack(fill="both", expand=True)
             elif name == "Acerca de":
                 AboutPanel(tab, accent=accent, lang=self._lang).pack(fill="both", expand=True)
+            elif name == "VPN":
+                self._build_tab(tab, spec)
+                VpnDevicesPanel(tab, self.cfg).grid(
+                    row=tab.grid_size()[1], column=0, columnspan=2, sticky="ew"
+                )
             else:
                 self._build_tab(tab, spec)
 

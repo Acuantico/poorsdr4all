@@ -20,6 +20,7 @@ consumidor.
 
 import logging
 import threading
+import time
 from collections import deque
 from typing import Optional
 
@@ -42,16 +43,36 @@ _chunk_size: int = 960  # 20ms a 48kHz (frame Opus estándar)
 
 # Tope y recorte por oyente (cada uno tiene su propia cola de este tamaño).
 #
-# El hilo que captura del dispositivo de audio real y el pacing de aiortc
-# en recv() (ver `_clock_start` en webserver.py) son dos relojes
-# independientes que nunca están perfectamente sincronizados: si la
-# producción adelanta un poco al consumo, el buffer acumula retraso. Como
-# `recv()` respeta su propio ritmo de reloj real, ese adelanto no es
-# sistemático, así que un margen moderado no arriesga que el retraso crezca
-# sin parar — y da colchón contra el jitter normal del hilo de captura,
-# absorbiendo huecos breves sin recurrir al relleno de silencio de recv()
-# (que, aun con crossfade, sigue siendo peor que servir audio real).
+# Antes en 14 (280 ms) con el vaciado en pop_rx_audio() solo activo por
+# encima de 8 (160 ms): dos relojes independientes (el hilo que captura del
+# dispositivo de audio real vs. el propio pacing de aiortc en recv(), cada
+# 20 ms) nunca están perfectamente sincronizados, y en cuanto la producción
+# adelantaba aunque fuera un poco al consumo, el buffer se quedaba instalado
+# cerca de ese tope en vez de recuperarse — el oyente remoto terminaba
+# escuchando con un retraso permanente de cientos de ms respecto al audio
+# real (lo que se reportó como "relentizado"), y cuando el propio deque
+# (maxlen) se llenaba del todo empezaba a tirar chunks sin avisar (lo que
+# sonaba "cortado"). Ahora que `RxAudioTrack.recv()` respeta su propio
+# ritmo de reloj real (ver `_clock_start` en webserver.py) ya no hay
+# adelanto sistemático del consumo sobre la producción, así que el riesgo
+# de que el retraso crezca sin parar ha desaparecido — un margen algo mayor
+# aquí no reintroduce ese problema, y da más colchón contra el jitter normal
+# del hilo de captura (absorbe huecos breves sin recurrir al relleno de
+# silencio de recv(), que aun con crossfade sigue siendo peor que servir
+# audio real).
 _RX_BUFFER_SIZE = 8  # 160 ms de margen máximo absoluto por oyente
+
+# Retraso fijo sobrante. La pista RX y la captura van al mismo ritmo, así que
+# los bloques que deja en la cola una ráfaga (al conectar, al volver de TX) se
+# quedaban ahí para siempre: 40-60 ms de retraso que no servían de colchón
+# (medido con scripts/bench_remoto.py). Si en ``_RX_TRIM_WINDOW`` entregas la
+# cola nunca bajó de un bloque de sobra, ese bloque es retraso y se descarta;
+# si el jitter real llega a vaciarla, no se toca.
+_RX_TRIM_WINDOW = 50  # ~1 s de bloques de 20 ms
+_listener_min_depth: dict[int, list[int]] = {}  # id -> [profundidad mínima, entregas]
+# Cuánto llevaba esperando en la cola el último bloque entregado a cada oyente
+# (la pista RX lo usa para alinear su reloj con la captura).
+_listener_last_age: dict[int, float] = {}
 
 
 def start_remote_audio() -> bool:
@@ -124,6 +145,7 @@ def register_listener() -> int:
         listener_id = _next_listener_id
         _next_listener_id += 1
         _listeners[listener_id] = deque(maxlen=_RX_BUFFER_SIZE)
+        _listener_min_depth[listener_id] = [_RX_BUFFER_SIZE, 0]
         return listener_id
 
 
@@ -131,6 +153,8 @@ def unregister_listener(listener_id: int) -> None:
     """Da de baja un oyente RX (conexión WebRTC cerrada)."""
     with _buffer_lock:
         _listeners.pop(listener_id, None)
+        _listener_min_depth.pop(listener_id, None)
+        _listener_last_age.pop(listener_id, None)
 
 
 def push_rx_audio(audio_data: np.ndarray):
@@ -176,11 +200,12 @@ def push_rx_audio(audio_data: np.ndarray):
                 _rx_pending = audio_data.copy()
             else:
                 _rx_pending = np.concatenate([_rx_pending, audio_data])
+            now = time.monotonic()
             while _rx_pending.size >= _chunk_size:
                 chunk = _rx_pending[:_chunk_size].copy()
                 _rx_pending = _rx_pending[_chunk_size:]
                 for queue in _listeners.values():
-                    queue.append(chunk.copy())
+                    queue.append((now, chunk.copy()))
 
     except Exception as e:
         logger.error(f"Error pushing RX audio: {e}")
@@ -204,7 +229,10 @@ def pop_rx_audio(listener_id: int, timeout_ms: int = 100) -> Optional[np.ndarray
     try:
         with _buffer_lock:
             queue = _listeners.get(listener_id)
+            depth = _listener_min_depth.get(listener_id)
             if not queue:
+                if depth is not None:
+                    depth[0] = 0  # se vació: el colchón hace falta
                 return None
             # Recorta hacia un margen pequeño en cada pop, no solo cuando el
             # buffer está a punto de desbordar: así el retraso acumulado se
@@ -212,9 +240,23 @@ def pop_rx_audio(listener_id: int, timeout_ms: int = 100) -> Optional[np.ndarray
             # (ver el comentario de _RX_BUFFER_SIZE más arriba).
             while len(queue) > 3:
                 queue.popleft()
-            return queue.popleft()
+            if depth is not None:
+                depth[0] = min(depth[0], len(queue) - 1)
+                depth[1] += 1
+                if depth[1] >= _RX_TRIM_WINDOW:
+                    if depth[0] >= 1 and len(queue) >= 2:
+                        queue.popleft()  # retraso fijo sobrante (ver _RX_TRIM_WINDOW)
+                    depth[0], depth[1] = _RX_BUFFER_SIZE, 0
+            arrived, chunk = queue.popleft()
+            _listener_last_age[listener_id] = time.monotonic() - arrived
+            return chunk
     except Exception:
         return None
+
+
+def last_rx_age(listener_id: int) -> Optional[float]:
+    """Segundos que esperó en la cola el último bloque entregado a ese oyente."""
+    return _listener_last_age.get(listener_id)
 
 
 def set_ptt(state: bool):

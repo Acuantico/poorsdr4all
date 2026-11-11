@@ -97,6 +97,20 @@ HELP: dict[str, dict[str, str]] = {
             "sabes lo que haces y usas HTTPS."
         ),
         "help_web_auto_https": "Genera y usa un certificado HTTPS automáticamente en vez de HTTP plano.",
+        "help_vpn_enabled": (
+            "Servidor WireGuard integrado (no necesita permisos de administrador). "
+            "Con él activo, el panel web solo es accesible a través del túnel, "
+            "siempre por HTTPS, y el audio también viaja por dentro."
+        ),
+        "help_vpn_port": "Puerto UDP del túnel. Debes reenviarlo en el router a este equipo (UDP, no TCP).",
+        "help_vpn_endpoint": (
+            "IP pública o nombre DDNS que usará el móvil para llegar a casa. "
+            "Vacío: se detecta la IP pública automáticamente."
+        ),
+        "help_vpn_allow_lan": (
+            "Además del túnel, deja el panel accesible desde la red local "
+            "(sin VPN) como antes."
+        ),
         "help_web_user": "Nombre de usuario para iniciar sesión en el panel web.",
         "help_web_password": (
             "Déjalo vacío para conservar la contraseña actual. Se guarda "
@@ -199,6 +213,20 @@ HELP: dict[str, dict[str, str]] = {
         "help_web_allow_wan": (
             "Allows access from outside your local network. Only enable it "
             "if you know what you're doing and use HTTPS."
+        ),
+        "help_vpn_enabled": (
+            "Built-in WireGuard server (no administrator rights needed). "
+            "When on, the web panel is only reachable through the tunnel, "
+            "always over HTTPS, and the audio travels inside it too."
+        ),
+        "help_vpn_port": "Tunnel UDP port. Forward it on the router to this computer (UDP, not TCP).",
+        "help_vpn_endpoint": (
+            "Public IP or DDNS name the phone will use to reach home. "
+            "Empty: the public IP is detected automatically."
+        ),
+        "help_vpn_allow_lan": (
+            "Besides the tunnel, keep the panel reachable from the local "
+            "network (without VPN) as before."
         ),
         "help_web_auto_https": "Generates and uses an HTTPS certificate automatically instead of plain HTTP.",
         "help_web_user": "Username to log in to the web panel.",

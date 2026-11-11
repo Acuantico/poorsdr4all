@@ -57,6 +57,7 @@ es.PreparandoWsl=Preparando WSL2 (puede tardar unos minutos)...
 es.InstalarOwrx=Instalar OpenWebRX+ ahora (recomendado; tarda unos 30 minutos la primera vez)
 es.ReparaOwrx=Reparar OpenWebRX+ (WSL)
 es.WslFallo=No se pudo preparar WSL2 automáticamente.%n%nPoorSDR4All se ha instalado igualmente. Puedes reintentarlo más tarde con «Reparar OpenWebRX+» en el menú Inicio.%n%nDetalle: C:\ProgramData\PoorSDR4All\preparar-wsl.log
+es.VirtualizacionNo=OpenWebRX+ necesita WSL2, y WSL2 necesita la virtualización por hardware, que en este equipo no está disponible.%n%nPuede que tu procesador no la admita o que esté desactivada en la BIOS/UEFI (busca opciones como «Intel Virtualization Technology», «VT-x» o «SVM Mode»). Consulta la documentación de tu placa base o de tu equipo.%n%nPoorSDR4All se instalará, pero sin OpenWebRX+. Si consigues activarla, vuelve a ejecutar este instalador con OpenWebRX+ marcado para completarlo.%n%nDetalle: C:\ProgramData\PoorSDR4All\preparar-wsl.log
 es.WslAntiguo=Tu versión de Windows es demasiado antigua para WSL2 (hace falta Windows 10 versión 2004 o posterior).%n%nPoorSDR4All se instalará, pero sin OpenWebRX+.
 es.QuitarOwrx=¿Quieres eliminar también OpenWebRX+ y su sistema Linux (WSL) de PoorSDR4All?%n%nSe liberará el espacio que ocupan (varios GB). Tus otras distribuciones de WSL no se tocan.
 en.TipoCompleto=Full installation (recommended)
@@ -78,6 +79,7 @@ en.PreparandoWsl=Preparing WSL2 (this can take a few minutes)...
 en.InstalarOwrx=Install OpenWebRX+ now (recommended; takes about 30 minutes the first time)
 en.ReparaOwrx=Repair OpenWebRX+ (WSL)
 en.WslFallo=WSL2 could not be prepared automatically.%n%nPoorSDR4All was installed anyway. You can retry later with "Repair OpenWebRX+" in the Start menu.%n%nDetails: C:\ProgramData\PoorSDR4All\preparar-wsl.log
+en.VirtualizacionNo=OpenWebRX+ needs WSL2, and WSL2 needs hardware virtualization, which is not available on this computer.%n%nYour processor may not support it, or it may be turned off in the BIOS/UEFI (look for options such as "Intel Virtualization Technology", "VT-x" or "SVM Mode"). Check the documentation of your motherboard or computer.%n%nPoorSDR4All will be installed, but without OpenWebRX+. If you manage to enable it, run this installer again with OpenWebRX+ selected to finish the setup.%n%nDetails: C:\ProgramData\PoorSDR4All\preparar-wsl.log
 en.WslAntiguo=This version of Windows is too old for WSL2 (Windows 10 version 2004 or later is required).%n%nPoorSDR4All will be installed, but without OpenWebRX+.
 en.QuitarOwrx=Do you also want to remove OpenWebRX+ and its Linux system (WSL) for PoorSDR4All?%n%nThis frees the space they use (several GB). Your other WSL distributions are not touched.
 
@@ -254,6 +256,7 @@ begin
                 '"' + ExpandConstant('{app}\PoorSDR4All.exe') + '" --asistente-wsl');
             end;
         20: MsgBox(CustomMessage('WslAntiguo'), mbInformation, MB_OK);
+        21: SuppressibleMsgBox(CustomMessage('VirtualizacionNo'), mbInformation, MB_OK, IDOK);
       else
         MsgBox(CustomMessage('WslFallo'), mbError, MB_OK);
       end;

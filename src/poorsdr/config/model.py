@@ -380,6 +380,14 @@ class WebServerConfig(_Section):
     ssl_key: str = ""
     password_salt: str = ""
     password_hash: str = ""
+    #: Acceso desde internet por la VPN WireGuard integrada (``_vendor/vpn.py``):
+    #: con ella activa la web solo escucha en local (o también en la LAN si
+    #: ``vpn_allow_lan``) y se llega por el túnel. ``vpn_endpoint`` vacío = la
+    #: IP pública detectada.
+    vpn_enabled: bool = False
+    vpn_port: int = 51821
+    vpn_endpoint: str = ""
+    vpn_allow_lan: bool = False
 
     _FIELDS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("WEB_SERVER_ENABLED", "enabled"),
@@ -395,6 +403,10 @@ class WebServerConfig(_Section):
         ("WEB_SERVER_SSL_KEY", "ssl_key"),
         ("WEB_SERVER_PASSWORD_SALT", "password_salt"),
         ("WEB_SERVER_PASSWORD_HASH", "password_hash"),
+        ("WEB_VPN_ENABLED", "vpn_enabled"),
+        ("WEB_VPN_PORT", "vpn_port"),
+        ("WEB_VPN_ENDPOINT", "vpn_endpoint"),
+        ("WEB_VPN_ALLOW_LAN", "vpn_allow_lan"),
     )
 
 
@@ -512,7 +524,14 @@ _SECTION_TYPES: tuple[tuple[str, type[_Section]], ...] = (
 #: desconocida, pero se descartan sin más — no tiene sentido conservarlas en
 #: ``AppConfig.extra`` si la función ya no existe en absoluto.
 RETIRED_LEGACY_KEYS: frozenset[str] = frozenset(
-    {"Roger_Beep", "Roger_Beep_Enabled", "PTT_COM", "PTT_VIA_CAT"}
+    {
+        "Roger_Beep", "Roger_Beep_Enabled", "PTT_COM", "PTT_VIA_CAT",
+        # Relés de filtros por WiFi: función retirada de la versión pública
+        # (se mantiene solo en PoorSDR4All-Personal).
+        "FILTER_RELAY_WIFI_ENABLED", "FILTER_RELAY_WIFI_URL",
+        "FILTER_RELAY_WIFI_API_KEY", "FILTER_RELAY_WIFI_TIMEOUT_MS",
+        "FILTER_RELAY_BAND_GROUPS",
+    }
 )
 
 

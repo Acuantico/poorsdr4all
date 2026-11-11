@@ -34,6 +34,12 @@ def _make_callbacks(builder: dict[str, Callable[..., Any]]) -> Any:
     return WebCallbacks(**builder)
 
 
+def _default_vpn_manager() -> Any:
+    import vpn
+
+    return vpn.get_manager()
+
+
 class WebServerService(BaseService):
     name = "web"
 
@@ -46,6 +52,7 @@ class WebServerService(BaseService):
         *,
         controller_factory: Callable[[Any], Any] | None = None,
         callbacks_factory: Callable[[dict[str, Callable[..., Any]]], Any] | None = None,
+        vpn_manager_factory: Callable[[], Any] | None = None,
         settle_delay_s: float = 0.18,
     ) -> None:
         super().__init__(bus)
@@ -56,6 +63,8 @@ class WebServerService(BaseService):
         self._make_callbacks = callbacks_factory or _make_callbacks
         self._settle_delay_s = settle_delay_s
         self._controller: Any | None = None
+        self._vpn_manager = vpn_manager_factory or _default_vpn_manager
+        self._vpn: Any | None = None
 
     # ---- ciclo de vida -------------------------------------------------- #
     def start(self) -> None:
@@ -99,9 +108,42 @@ class WebServerService(BaseService):
             self._set_status(ServiceState.ERROR, "el servidor no quedó a la escucha")
             return
         self.bus.publish("web.status", running=True)
-        self._set_status(ServiceState.RUNNING, f"{self._cfg.web.host}:{self._cfg.web.port}")
+        detail = f"{self._cfg.web.host}:{self._cfg.web.port}"
+        if self._cfg.web.vpn_enabled:
+            detail = self._start_vpn()
+        self._set_status(ServiceState.RUNNING, detail)
+
+    def _start_vpn(self) -> str:
+        """Levanta el túnel WireGuard hacia el servidor web (ya a la escucha).
+
+        Si falla, la web sigue funcionando en local; el motivo queda en el
+        estado del servicio y en ``web.vpn``.
+        """
+        try:
+            manager = self._vpn_manager()
+            ok = manager.start(self._cfg.web.port, self._cfg.web.vpn_port)
+            error = None if ok else (manager.error or "la VPN no arrancó")
+        except Exception as exc:  # noqa: BLE001 - binario ausente, permisos...
+            self.log.exception("no se pudo arrancar la VPN")
+            manager, ok, error = None, False, str(exc)
+        self._vpn = manager if ok else None
+        self.bus.publish("web.vpn", running=ok, error=error)
+        if not ok:
+            return f"127.0.0.1:{self._cfg.web.port} (VPN: {error})"
+        return f"VPN https://10.9.0.1:{self._cfg.web.port} (UDP {self._cfg.web.vpn_port})"
+
+    def _stop_vpn(self) -> None:
+        manager, self._vpn = self._vpn, None
+        if manager is None:
+            return
+        try:
+            manager.stop()
+        except Exception:  # noqa: BLE001
+            self.log.debug("parada de la VPN con excepción", exc_info=True)
+        self.bus.publish("web.vpn", running=False, error=None)
 
     def stop(self) -> None:
+        self._stop_vpn()
         controller = self._controller
         self._controller = None
         if controller is not None:
@@ -116,7 +158,10 @@ class WebServerService(BaseService):
         old = self._cfg.web
         self._cfg = cfg
         new = cfg.web
-        keys = ("enabled", "host", "port", "allow_wan", "auto_https", "user")
+        keys = (
+            "enabled", "host", "port", "allow_wan", "auto_https", "user",
+            "vpn_enabled", "vpn_port", "vpn_allow_lan",
+        )
         if any(getattr(new, k) != getattr(old, k) for k in keys):
             self.log.info("config del servidor web cambiada; reiniciando")
             self.stop()

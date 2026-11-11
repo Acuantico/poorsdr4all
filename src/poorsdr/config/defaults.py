@@ -154,6 +154,11 @@ LEGACY_DEFAULTS: dict[str, Any] = {
     "WEB_SERVER_SSL_KEY": "",
     "WEB_SERVER_PASSWORD_SALT": "",
     "WEB_SERVER_PASSWORD_HASH": "",
+    # Acceso desde internet por la VPN WireGuard integrada (_vendor/vpn.py).
+    "WEB_VPN_ENABLED": False,
+    "WEB_VPN_PORT": 51821,
+    "WEB_VPN_ENDPOINT": "",
+    "WEB_VPN_ALLOW_LAN": False,
     # -- Llamada automática ---------------------------------------------
     "AutoCallProfiles": [],
     "AutoCallButtons": [0, 1, 2, 3],

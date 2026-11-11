@@ -134,6 +134,14 @@ TABS: dict[str, tuple[Field, ...]] = {
         Field("web", "password_hash", "label_web_password", "web_password",
               help_key="help_web_password"),
     ),
+    # Debajo de estos campos, window.py añade la lista de dispositivos
+    # (ui/settings/vpn_panel.py).
+    "VPN": (
+        Field("web", "vpn_enabled", "label_vpn_enabled", "bool", help_key="help_vpn_enabled"),
+        Field("web", "vpn_port", "label_vpn_port", "int", help_key="help_vpn_port"),
+        Field("web", "vpn_endpoint", "label_vpn_endpoint", help_key="help_vpn_endpoint"),
+        Field("web", "vpn_allow_lan", "label_vpn_allow_lan", "bool", help_key="help_vpn_allow_lan"),
+    ),
     "Interfaz": (
         Field("ui", "operator_callsign", "label_ui_operator_callsign",
               help_key="help_ui_operator_callsign"),
@@ -163,7 +171,7 @@ TABS: dict[str, tuple[Field, ...]] = {
 }
 
 #: Clave de traducción (poorsdr.i18n.settings_labels) del título de cada pestaña.
-#: Las que no aparecen aquí (OWRX, Web, Plugins) son términos técnicos/marca
+#: Las que no aparecen aquí (OWRX, Web, VPN, Plugins) son términos técnicos/marca
 #: que no se traducen.
 TAB_LABEL_KEY: dict[str, str] = {
     "Radio / CAT": "label_tab_radio_cat",

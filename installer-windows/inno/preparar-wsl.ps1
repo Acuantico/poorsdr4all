@@ -1,7 +1,9 @@
-# Prepara Windows para WSL2 (necesita administrador). Lo ejecuta el instalador de PoorSDR4All.
-#   -Usbipd   instala además usbipd-win (pasar un SDR USB a WSL)
-# Códigos de salida: 0 = listo · 10 = listo, pero Windows necesita REINICIAR · 20 = Windows demasiado antiguo · 1 = error
-param([switch]$Usbipd)
+﻿# Prepara Windows para WSL2 (necesita administrador). Lo ejecuta el instalador de PoorSDR4All.
+#   -Usbipd         instala además usbipd-win (pasar un SDR USB a WSL)
+#   -SoloComprobar  solo comprueba si el equipo admite WSL2 (virtualización) y sale, sin instalar nada
+# Códigos de salida: 0 = listo · 10 = listo, pero Windows necesita REINICIAR · 20 = Windows demasiado antiguo
+#   · 21 = el equipo no admite la virtualización por hardware (o está desactivada en la BIOS/UEFI) · 1 = error
+param([switch]$Usbipd, [switch]$SoloComprobar)
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -11,6 +13,14 @@ $carpeta = Join-Path $env:ProgramData "PoorSDR4All"
 New-Item -ItemType Directory -Force $carpeta | Out-Null
 $registro = Join-Path $carpeta "preparar-wsl.log"
 function Log($t) { "{0:HH:mm:ss} {1}" -f (Get-Date), $t | Tee-Object -FilePath $registro -Append }
+
+function VirtualizacionOk($hipervisor, $slat, $firmware) {
+    # WSL2 necesita virtualización por hardware: procesador con SLAT y la opción activada en la BIOS/UEFI.
+    # Solo se descarta con un "False" explícito; un dato que no se pudo leer ($null) no bloquea nada.
+    if ($hipervisor -eq $true) { return $true }   # ya hay un hipervisor (Hyper-V, WSL2, máquina virtual): funciona
+    if ($slat -eq $false -or $firmware -eq $false) { return $false }
+    return $true
+}
 
 function Nativo {  # ejecuta un programa nativo sin que un código distinto de 0 aborte el script
     $ErrorActionPreference = "Continue"
@@ -52,6 +62,18 @@ try {
     $build = [Environment]::OSVersion.Version.Build
     Log "Windows build $build"
     if ($build -lt 19041) { Log "Se necesita Windows 10 versión 2004 (build 19041) o posterior."; exit 20 }
+
+    # Antes de instalar nada: si el equipo no puede virtualizar, WSL2 no arrancará aunque se reinicie.
+    try {
+        $cs = Get-CimInstance Win32_ComputerSystem
+        $cpu = @(Get-CimInstance Win32_Processor)[0]
+        Log ("Procesador: {0} · hipervisor presente: {1} · SLAT: {2} · virtualización en firmware: {3}" -f $cpu.Name, $cs.HypervisorPresent, $cpu.SecondLevelAddressTranslationExtensions, $cpu.VirtualizationFirmwareEnabled)
+        if (-not (VirtualizacionOk $cs.HypervisorPresent $cpu.SecondLevelAddressTranslationExtensions $cpu.VirtualizationFirmwareEnabled)) {
+            Log "La virtualización por hardware no está disponible: el procesador no la admite o está desactivada en la BIOS/UEFI. WSL2 no puede funcionar."
+            exit 21
+        }
+    } catch { Log "No pude comprobar la virtualización ($_); se continúa." }
+    if ($SoloComprobar) { Log "Comprobación de virtualización correcta."; exit 0 }
 
     $reiniciar = $false
 

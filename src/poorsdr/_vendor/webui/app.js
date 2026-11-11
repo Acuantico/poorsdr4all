@@ -49,6 +49,85 @@ const wsReconnectBaseDelay = 1000;
 const PTT_TOGGLE_DEBOUNCE_MS = 650;
 const PTT_MIN_ACTIVE_MS = 0;
 
+// PTT seguro: mientras se transmite, la web confirma el TX al servidor cada
+// 100 ms por el canal de datos "ptt" (o cada 250 ms por /api/ptt si el canal no
+// está abierto). Si los latidos dejan de llegar, el servidor suelta el PTT solo.
+// Cada pulsación lleva su número: una vez soltada, sus latidos ya no cuentan.
+const PTT_BEAT_MS = 100;
+const PTT_HTTP_BEAT_MS = 250;
+const PTT_SERVER_GRACE_MS = 1500;
+let pttChannel = null;
+let pttPress = 0;
+let pttBeating = false;
+let pttBeatStartedAt = 0;
+let pttHttpBeatAt = 0;
+let pttTicker = null;
+let pttFallbackTimer = null;
+
+function sendPttMessage(on) {
+  if (pttChannel && pttChannel.readyState === "open") {
+    try {
+      pttChannel.send(`P${on ? 1 : 0}:${pttPress}`);
+      return true;
+    } catch (_err) {
+      // canal cerrándose: se usa HTTP
+    }
+  }
+  return false;
+}
+
+function pttBeat() {
+  if (!pttBeating) return;
+  // El servidor soltó el PTT (sin latido, tiempo máximo...): no se insiste.
+  if (!currentState.ptt && Date.now() - pttBeatStartedAt > PTT_SERVER_GRACE_MS) {
+    stopPttBeat();
+    pttDesiredState = false;
+    applyRxMonitorState();
+    return;
+  }
+  if (sendPttMessage(true)) return;
+  const now = Date.now();
+  if (now - pttHttpBeatAt >= PTT_HTTP_BEAT_MS) {
+    pttHttpBeatAt = now;
+    api("/api/ptt", "POST", { state: true, press: pttPress }).catch(() => {});
+  }
+}
+
+// Los temporizadores de una pestaña en segundo plano se frenan a 1 por
+// segundo, más que el hombre muerto del servidor: el ritmo lo marca un worker.
+function startPttTicker() {
+  if (!pttTicker) {
+    try {
+      const src = "let t=null;onmessage=(e)=>{clearInterval(t);t=e.data>0?setInterval(()=>postMessage(0),e.data):null;};";
+      pttTicker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+      pttTicker.onmessage = pttBeat;
+    } catch (_err) {
+      pttTicker = null;
+    }
+  }
+  if (pttTicker) {
+    pttTicker.postMessage(PTT_BEAT_MS);
+  } else {
+    pttFallbackTimer = setInterval(pttBeat, PTT_BEAT_MS);
+  }
+}
+
+function startPttBeat() {
+  pttBeating = true;
+  pttBeatStartedAt = Date.now();
+  pttHttpBeatAt = Date.now();
+  startPttTicker();
+}
+
+function stopPttBeat() {
+  pttBeating = false;
+  if (pttTicker) pttTicker.postMessage(0);
+  if (pttFallbackTimer) {
+    clearInterval(pttFallbackTimer);
+    pttFallbackTimer = null;
+  }
+}
+
 function applyRxMonitorState() {
   if (!audioEl) return;
   // Instant local switch: when TX is active, mute RX monitor immediately.
@@ -378,9 +457,12 @@ async function connectWebRTC() {
       clearTimeout(webrtcReconnectTimer);
       webrtcReconnectTimer = null;
     }
-    if (currentState.ptt) {
+    if (currentState.ptt || pttBeating) {
+      stopPttBeat();
+      pttDesiredState = false;
+      sendPttMessage(false);
       try {
-        await api("/api/ptt", "POST", { state: false });
+        await api("/api/ptt", "POST", { state: false, press: pttPress });
       } catch (err) {
         console.error("Error disabling PTT on disconnect:", err);
       }
@@ -465,6 +547,9 @@ async function connectWebRTC() {
   } else {
     pc.addTransceiver("audio", { direction: "recvonly" });
   }
+
+  // Canal fiable y ordenado para el PTT (se negocia junto con el audio).
+  pttChannel = pc.createDataChannel("ptt", { ordered: true });
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -565,8 +650,16 @@ async function setPttState(targetState) {
     } else {
       pttMicUnavailable = false;
     }
+    if (targetState) {
+      pttPress = Math.max(Date.now(), pttPress + 1);
+    } else {
+      stopPttBeat();
+    }
     updateUI({ ptt: targetState });
-    const result = await api("/api/ptt", "POST", { state: targetState });
+    // Por el canal llega antes; el POST va siempre como respaldo.
+    sendPttMessage(targetState);
+    if (targetState) startPttBeat();
+    const result = await api("/api/ptt", "POST", { state: targetState, press: pttPress });
     if (!result?.applied) {
       await refreshStatus();
     }
@@ -741,6 +834,7 @@ freqDownBtn.onclick = () => {
 };
 
 function cleanupAll() {
+  stopPttBeat();
   wsConnected = false;
   if (wsReconnectTimer) {
     clearTimeout(wsReconnectTimer);

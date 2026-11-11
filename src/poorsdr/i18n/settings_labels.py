@@ -71,6 +71,33 @@ LABELS: dict[str, dict[str, str]] = {
         "label_web_auto_https": "HTTPS automático",
         "label_web_user": "Usuario",
         "label_web_password": "Contraseña",
+        # VPN (acceso desde internet)
+        "label_vpn_enabled": "Acceso desde internet por VPN",
+        "label_vpn_port": "Puerto UDP",
+        "label_vpn_endpoint": "Dirección pública (vacío = detectar)",
+        "label_vpn_allow_lan": "Permitir también la red local",
+        "label_vpn_devices": "Dispositivos autorizados",
+        "label_vpn_no_devices": "Ninguno todavía. Añade tu móvil para generar su QR.",
+        "label_vpn_add": "Añadir dispositivo…",
+        "label_vpn_remove": "Quitar",
+        "label_vpn_remove_confirm": "¿Quitar «{name}»? Ya no podrá conectarse.",
+        "label_vpn_device_name": "Nombre del dispositivo (p. ej. «Móvil»):",
+        "label_vpn_connected": "conectado",
+        "label_vpn_not_connected": "sin conexión",
+        "label_vpn_running": "Túnel activo. Desde el dispositivo: {url}",
+        "label_vpn_stopped": "Túnel parado: se activa al guardar con la casilla marcada y el servidor web encendido.",
+        "label_vpn_error": "La VPN no arrancó: {error}",
+        "label_vpn_endpoint_now": "Dirección pública en los QR: {endpoint}",
+        "label_vpn_cgnat": "Esa IP es compartida o privada (CG-NAT): desde fuera no se podrá entrar.",
+        "label_vpn_router": "En el router: reenvía el puerto {port} UDP (no TCP) a este equipo ({ip}).",
+        "label_vpn_qr_steps": (
+            "1. Instala WireGuard en el móvil.\n"
+            "2. Pulsa + → Escanear código QR.\n"
+            "3. Activa el túnel y abre {url}\n"
+            "   (acepta el aviso del certificado)."
+        ),
+        "label_vpn_save_conf": "Guardar .conf…",
+        "label_close": "Cerrar",
         # Interfaz
         "label_ui_operator_callsign": "Mi indicativo",
         "label_ui_language": "Idioma",
@@ -186,6 +213,33 @@ LABELS: dict[str, dict[str, str]] = {
         "label_web_auto_https": "Auto HTTPS",
         "label_web_user": "Username",
         "label_web_password": "Password",
+        # VPN (remote access from the internet)
+        "label_vpn_enabled": "Internet access through VPN",
+        "label_vpn_port": "UDP port",
+        "label_vpn_endpoint": "Public address (empty = detect)",
+        "label_vpn_allow_lan": "Also allow the local network",
+        "label_vpn_devices": "Authorized devices",
+        "label_vpn_no_devices": "None yet. Add your phone to get its QR code.",
+        "label_vpn_add": "Add device…",
+        "label_vpn_remove": "Remove",
+        "label_vpn_remove_confirm": "Remove “{name}”? It will no longer be able to connect.",
+        "label_vpn_device_name": "Device name (e.g. “Phone”):",
+        "label_vpn_connected": "connected",
+        "label_vpn_not_connected": "not connected",
+        "label_vpn_running": "Tunnel up. From the device: {url}",
+        "label_vpn_stopped": "Tunnel stopped: it starts when you save with the box ticked and the web server on.",
+        "label_vpn_error": "The VPN did not start: {error}",
+        "label_vpn_endpoint_now": "Public address in the QR codes: {endpoint}",
+        "label_vpn_cgnat": "That IP is shared or private (CG-NAT): it cannot be reached from outside.",
+        "label_vpn_router": "On the router: forward port {port} UDP (not TCP) to this computer ({ip}).",
+        "label_vpn_qr_steps": (
+            "1. Install WireGuard on the phone.\n"
+            "2. Tap + → Scan from QR code.\n"
+            "3. Turn the tunnel on and open {url}\n"
+            "   (accept the certificate warning)."
+        ),
+        "label_vpn_save_conf": "Save .conf…",
+        "label_close": "Close",
         "label_ui_operator_callsign": "My callsign",
         "label_ui_language": "Language",
         "label_ui_theme": "Theme",
