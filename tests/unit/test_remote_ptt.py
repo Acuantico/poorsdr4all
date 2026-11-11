@@ -11,6 +11,49 @@ import pytest
 # Necesita los extras web (``pip install .[web]``): sin ellos la prueba se omite en vez de fallar.
 pytest.importorskip("fastapi", reason="faltan los extras web")
 
+
+def _audio_sin_tarjeta() -> None:
+    """Esta prueba no toca audio real. Si PortAudio falta o no puede arrancar (p. ej. en el CI, sin tarjeta de
+    sonido), se usa un ``PyAudio`` vacío para que ``webserver`` pueda importarse."""
+    import sys
+    import types
+
+    try:
+        import pyaudio
+
+        pyaudio.PyAudio().terminate()
+        return
+    except ImportError:
+        pyaudio = types.ModuleType("pyaudio")
+        pyaudio.paInt16 = 8
+        sys.modules["pyaudio"] = pyaudio
+    except OSError:
+        pass
+
+    class _PyAudio:
+        def terminate(self) -> None:
+            pass
+
+        def get_device_count(self) -> int:
+            return 0
+
+        def get_default_input_device_info(self):
+            raise OSError("sin dispositivo de entrada")
+
+        def get_default_output_device_info(self):
+            raise OSError("sin dispositivo de salida")
+
+        def get_host_api_info_by_index(self, indice):
+            return {}
+
+        def get_device_info_by_index(self, indice):
+            return {}
+
+    pyaudio.PyAudio = _PyAudio
+
+
+_audio_sin_tarjeta()
+
 import webserver  # noqa: E402
 
 

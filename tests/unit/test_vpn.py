@@ -32,6 +32,7 @@ class VpnStoreTests(unittest.TestCase):
         # el hueco libre se reutiliza
         self.assertEqual("10.9.0.2", vpn.add_device("Otro")["ip"])
 
+    @unittest.skipIf(os.name == "nt", "Windows no aplica los permisos de modo 600 de POSIX")
     def test_el_almacen_solo_lo_lee_el_usuario(self):
         vpn.add_device("Móvil")
         mode = stat.S_IMODE(Path(self._tmp.name, "vpn.json").stat().st_mode)
