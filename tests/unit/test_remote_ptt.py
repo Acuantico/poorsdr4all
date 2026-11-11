@@ -6,7 +6,12 @@ import asyncio
 import threading
 import unittest
 
-import webserver
+import pytest
+
+# Necesita los extras web (``pip install .[web]``): sin ellos la prueba se omite en vez de fallar.
+pytest.importorskip("fastapi", reason="faltan los extras web")
+
+import webserver  # noqa: E402
 
 
 class _Callbacks:
